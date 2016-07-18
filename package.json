@@ -43,6 +43,7 @@
     "commander": "^2.9.0",
     "express": "^4.13",
     "native-dns": "^0.7.0",
+    "node-forge": "^0.6.41",
     "node-jose": "^0.8",
     "node-uuid": "^1.4.7",
     "npmlog": "^2.0",
