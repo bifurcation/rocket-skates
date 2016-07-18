@@ -4,8 +4,17 @@
   "description": "Implementation of the ACME protocol",
   "main": "lib/index.js",
   "scripts": {
-    "test": "gulp test",
-    "ci": "gulp ci"
+    "clean": "rimraf doc/ coverage/",
+    "lint": "eslint eslint lib/ test/",
+    "pretest": "npm run lint",
+    "test": "mocha",
+    "coverage": "istanbul cover _mocha test/*.js",
+    "doc": "documentation build -g -f html -o doc lib/",
+    "ci": "npm run coverage -s && cat ./coverage/lcov.info | coveralls",
+    "live": "live-server --port=4003 --ignorePattern='(js|css|png)$' coverage/lcov-report",
+    "watch": "watch 'npm run coverage' lib/",
+    "dev": "npm-run-all -p --silent watch live",
+    "release": "npm version patch && git push --follow-tags && npm publish"
   },
   "repository": {
     "type": "git",
@@ -41,22 +50,18 @@
     "request-promise": "https://github.com/hildjj/request-promise.git#cls-depend"
   },
   "devDependencies": {
-    "body-parser": "^1.14",
-    "chai": "^3.4",
-    "del": "^2.0",
-    "gulp": "^3.9",
-    "gulp-coveralls": "^0.1",
-    "gulp-documentation": "^2.1",
-    "gulp-eslint": "^1.0",
-    "gulp-exit": "0.0.2",
-    "gulp-gh-pages": "^0.5.4",
-    "gulp-istanbul": "^0.10",
-    "gulp-live-server": "0.0",
-    "gulp-mocha": "^2.1",
-    "gulp-util": "^3.0",
-    "nock": "^8.0.0",
-    "open": "^0.0",
+    "body-parser": "latest",
+    "chai": "latest",
+    "documentation": "latest",
+    "eslint": "latest",
+    "istanbul": "latest",
+    "live-server": "latest",
+    "mocha": "latest",
+    "nock": "latest",
+    "npm-run-all": "^2.3.0",
+    "rimraf": "latest",
     "supertest": "^0.0",
-    "temp": "^0.8"
+    "temp": "latest",
+    "watch": "latest"
   }
 }
