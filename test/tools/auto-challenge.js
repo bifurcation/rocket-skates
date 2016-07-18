@@ -1,7 +1,7 @@
 'use strict';
 
 class AutoChallenge {
-  constructor(name) {
+  constructor() {
     this.status = 'pending';
     this.token = Math.random().toString().substring(2);
   }
