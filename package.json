@@ -1,7 +1,7 @@
 {
-  "name": "node-acme",
+  "name": "rocket-skates",
   "version": "0.0.1",
-  "description": "Client for ACME protocol",
+  "description": "Implementation of the ACME protocol",
   "main": "lib/index.js",
   "scripts": {
     "test": "gulp test",
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hildjj/node-acme.git"
+    "url": "git+https://github.com/bifurcation/rocket-skates.git"
   },
   "keywords": [
     "acme",
@@ -20,12 +20,15 @@
     "ssl",
     "tls"
   ],
-  "author": "Joe Hildebrand <joe-github@cursive.net>",
+  "contributors": [
+    "Joe Hildebrand <joe-github@cursive.net>",
+    "Richard Barnes <rlb@ipv.sx>"
+  ],
   "license": "MPL-2.0",
   "bugs": {
-    "url": "https://github.com/hildjj/node-acme/issues"
+    "url": "https://github.com/bifurcation/rocket-skates/issues"
   },
-  "homepage": "https://github.com/hildjj/node-acme#readme",
+  "homepage": "https://github.com/bifurcation/rocket-skates#readme",
   "dependencies": {
     "bluebird": "^3.0",
     "commander": "^2.9.0",
