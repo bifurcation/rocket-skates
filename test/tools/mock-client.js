@@ -21,6 +21,6 @@ class MockClient {
         url:   url
       }));
   }
-};
+}
 
 module.exports = MockClient;
