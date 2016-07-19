@@ -52,7 +52,7 @@ describe('transport-level server', function() {
   it('rejects a POST with a bad nonce', function(done) {
     let server = new TransportServer();
 
-    mockClient.makeJWS('asdf', 'http://0.0.0.0/foo?bar=baz')
+    mockClient.makeJWS('asdf', 'http://0.0.0.0/foo?bar=baz', {})
     .then(jws => {
       request(server.app)
         .post('/foo?bar=baz')
@@ -65,7 +65,7 @@ describe('transport-level server', function() {
     let server = new TransportServer();
     let nonce = server.nonces.get();
 
-    mockClient.makeJWS(nonce, 'http://example.com/foo?bar=baz')
+    mockClient.makeJWS(nonce, 'http://example.com/stuff', {})
     .then(jws => {
       request(server.app)
         .post('/foo?bar=baz')
