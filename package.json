@@ -52,6 +52,7 @@
     "coveralls": "^2.11.11",
     "documentation": "latest",
     "eslint": "latest",
+    "eslint-plugin-header": "^0.1.0",
     "istanbul": "latest",
     "live-server": "latest",
     "mocha": "latest",
