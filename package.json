@@ -29,10 +29,6 @@
     "ssl",
     "tls"
   ],
-  "contributors": [
-    "Joe Hildebrand <joe-github@cursive.net>",
-    "Richard Barnes <rlb@ipv.sx>"
-  ],
   "license": "MPL-2.0",
   "bugs": {
     "url": "https://github.com/bifurcation/rocket-skates/issues"
