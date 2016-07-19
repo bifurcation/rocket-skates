@@ -10,6 +10,7 @@ const nock            = require('nock');
 const HTTP01Challenge = require('../lib/challenges/http-challenge.js');
 
 const thumbprint = 'p3wl28h-9g3g1r6eIGORS5usGW79TUjL6fo_T5xRhAQ';
+const name = 'example.com';
 
 describe('http-01 challenge', () => {
   afterEach(() => {
@@ -17,11 +18,11 @@ describe('http-01 challenge', () => {
   });
 
   it('updates and does a query', (done) => {
-    let challenge = new HTTP01Challenge('example.com', thumbprint);
+    let challenge = new HTTP01Challenge(name, thumbprint);
     assert.equal(challenge.status, 'pending');
 
-    let server = nock('http://example.com')
-      .get('/.well-known/acme-challenge/' + challenge.token)
+    let server = nock(`http://${name}`)
+      .get(`/.well-known/acme-challenge/${challenge.token}`)
       .reply(200, challenge._keyAuthorization);
 
     let response = {
@@ -38,7 +39,7 @@ describe('http-01 challenge', () => {
   });
 
   it('rejects a response with the wrong type', (done) => {
-    let challenge = new HTTP01Challenge('example.com', thumbprint);
+    let challenge = new HTTP01Challenge(name, thumbprint);
     let response = {
       type:             'not-http',
       keyAuthorization: challenge._keyAuthorization
@@ -53,7 +54,7 @@ describe('http-01 challenge', () => {
   });
 
   it('rejects a response with the wrong keyAuthorization', (done) => {
-    let challenge = new HTTP01Challenge('example.com', thumbprint);
+    let challenge = new HTTP01Challenge(name, thumbprint);
     let response = {
       type:             HTTP01Challenge.type,
       keyAuthorization: challenge._keyAuthorization + '-not'
@@ -68,11 +69,11 @@ describe('http-01 challenge', () => {
   });
 
   it('rejects a bad validation response', (done) => {
-    let challenge = new HTTP01Challenge('example.com', thumbprint);
+    let challenge = new HTTP01Challenge(name, thumbprint);
     assert.equal(challenge.status, 'pending');
 
-    let server = nock('http://example.com')
-      .get('/.well-known/acme-challenge/' + challenge.token)
+    let server = nock(`http://${name}`)
+      .get(`/.well-known/acme-challenge/${challenge.token}`)
       .reply(200, 'not what you are looking for');
 
     let response = {
@@ -89,12 +90,12 @@ describe('http-01 challenge', () => {
   });
 
   it('invalidates on a server error', (done) => {
-    let challenge = new HTTP01Challenge('example.com', thumbprint);
+    let challenge = new HTTP01Challenge(name, thumbprint);
     assert.equal(challenge.status, 'pending');
 
-    let server = nock('http://example.com')
-      .get('/.well-known/acme-challenge/' + challenge.token)
-      .reply(400);
+    let server = nock(`http://${name}`)
+      .get(`/.well-known/acme-challenge/${challenge.token}`)
+      .reply(404);
 
     let response = {
       type:             HTTP01Challenge.type,
@@ -110,7 +111,7 @@ describe('http-01 challenge', () => {
   });
 
   it('serializes properly', (done) => {
-    let challenge = new HTTP01Challenge('example.com', thumbprint);
+    let challenge = new HTTP01Challenge(name, thumbprint);
     let serialized = challenge.toJSON();
 
     assert.property(serialized, 'type');
@@ -118,7 +119,7 @@ describe('http-01 challenge', () => {
     assert.property(serialized, 'token');
     assert.notProperty(serialized, 'keyAuthorization');
 
-    nock('http://example.com')
+    nock('http://${name}')
       .get('/.well-known/acme-challenge/' + challenge.token)
       .reply(200, challenge._keyAuthorization);
     let response = {
