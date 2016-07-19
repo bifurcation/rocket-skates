@@ -32,8 +32,8 @@ function path(url) {
   return urlParse.parse(url).path;
 }
 
-describe('ACME server', function() {
-  it('responds to a directory request', function(done) {
+describe('ACME server', () => {
+  it('responds to a directory request', (done) => {
     let server = new ACMEServer(serverConfig);
     let termsURL = 'https://example.com/terms';
 
@@ -56,7 +56,7 @@ describe('ACME server', function() {
       .catch(done);
   });
 
-  it('answers a valid fetch', function(done) {
+  it('answers a valid fetch', (done) => {
     let server = new ACMEServer(serverConfig);
     let reg = {
       type:    function() { return 'foo'; },
@@ -74,21 +74,21 @@ describe('ACME server', function() {
       .catch(done);
   });
 
-  it('rejects a fetch for a registration object', function(done) {
+  it('rejects a fetch for a registration object', (done) => {
     let server = new ACMEServer(serverConfig);
     request(server.app)
       .get('/reg/foo')
       .expect(401, done);
   });
 
-  it('rejects a fetch for a non-existent object', function(done) {
+  it('rejects a fetch for a non-existent object', (done) => {
     let server = new ACMEServer(serverConfig);
     request(server.app)
       .get('/foo/bar')
       .expect(404, done);
   });
 
-  it('creates a new registration', function(done) {
+  it('creates a new registration', (done) => {
     let server = new ACMEServer(serverConfig);
     let termsURL = 'https://example.com/terms';
     server.terms = termsURL;
@@ -128,7 +128,7 @@ describe('ACME server', function() {
       .catch(done);
   });
 
-  it('rejects a new registration for an existing key', function(done) {
+  it('rejects a new registration for an existing key', (done) => {
     let server = new ACMEServer(serverConfig);
     let termsURL = 'https://example.com/terms';
     server.terms = termsURL;
@@ -158,7 +158,7 @@ describe('ACME server', function() {
       });
   });
 
-  it('updates a registration', function(done) {
+  it('updates a registration', (done) => {
     let server = new ACMEServer(serverConfig);
     let termsURL = 'https://example.com/terms';
     server.terms = termsURL;
@@ -211,7 +211,7 @@ describe('ACME server', function() {
       });
   });
 
-  it('creates a new application', function(done) {
+  it('creates a new application', (done) => {
     let server = new ACMEServer(serverConfig);
 
     let thumbprint;
@@ -323,12 +323,12 @@ describe('ACME server', function() {
       .catch(done);
   });
 
-  it('rejects a new application from an unregistered key', function() {});
-  it('rejects a new application with an invalid csr', function() {});
-  it('rejects a new application with an invalid notBefore', function() {});
-  it('rejects a new application with an invalid notAfter', function() {});
+  it('rejects a new application from an unregistered key', () => {});
+  it('rejects a new application with an invalid csr', () => {});
+  it('rejects a new application with an invalid notBefore', () => {});
+  it('rejects a new application with an invalid notAfter', () => {});
 
-  it('issues a certificate', function(done) {
+  it('issues a certificate', (done) => {
     let server = new ACMEServer(serverConfig);
 
     let nonce = server.transport.nonces.get();

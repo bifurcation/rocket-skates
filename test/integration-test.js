@@ -12,8 +12,8 @@ const TransportServer = require('../lib/transport-server');
 
 const PORT = 4430;
 
-describe('transport-level client/server integration', function() {
-  it('performs a POST request with preflight', function(done) {
+describe('transport-level client/server integration', () => {
+  it('performs a POST request with preflight', (done) => {
     let server = new TransportServer();
 
     let url = `http://localhost:${PORT}/foo`;

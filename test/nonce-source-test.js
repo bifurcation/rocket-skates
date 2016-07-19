@@ -3,8 +3,8 @@
 const assert = require('chai').assert;
 const nonceSource  = require('../lib/nonce-source');
 
-describe('nonce-source', function() {
-  it('rejects bad nonces', function() {
+describe('nonce-source', () => {
+  it('rejects bad nonces', () => {
     let src = new nonceSource();
 
     let x = src.get();
@@ -15,7 +15,7 @@ describe('nonce-source', function() {
     assert.isFalse(src.use('2.3'));
   });
 
-  it('ages off nonces when too many have been used', function() {
+  it('ages off nonces when too many have been used', () => {
     let start = 42;
     let bufferSize = 10;
     let src = new nonceSource(start, bufferSize);
