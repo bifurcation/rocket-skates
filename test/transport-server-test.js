@@ -14,8 +14,8 @@ const TransportServer = require('../lib/transport-server');
 let nonceRE = /^[a-zA-Z0-9-_]+$/;
 let mockClient = new MockClient();
 
-describe('transport-level server', function() {
-  it('responds to a valid POST request', function(done) {
+describe('transport-level server', () => {
+  it('responds to a valid POST request', (done) => {
     let server = new TransportServer();
     let nonce = server.nonces.get();
     let payload = {'fnord': 42};
@@ -49,7 +49,7 @@ describe('transport-level server', function() {
       .catch(done);
   });
 
-  it('rejects a POST with a bad nonce', function(done) {
+  it('rejects a POST with a bad nonce', (done) => {
     let server = new TransportServer();
 
     mockClient.makeJWS('asdf', 'http://0.0.0.0/foo?bar=baz', {})
@@ -61,7 +61,7 @@ describe('transport-level server', function() {
     });
   });
 
-  it('rejects a POST with a bad url', function(done) {
+  it('rejects a POST with a bad url', (done) => {
     let server = new TransportServer();
     let nonce = server.nonces.get();
 
@@ -74,7 +74,7 @@ describe('transport-level server', function() {
     });
   });
 
-  it('provides a nonce for GET requests', function(done) {
+  it('provides a nonce for GET requests', (done) => {
     let server = new TransportServer();
     request(server.app)
       .get('/')
@@ -82,7 +82,7 @@ describe('transport-level server', function() {
       .expect('replay-nonce', nonceRE, done);
   });
 
-  it('provides a nonce for HEAD requests', function(done) {
+  it('provides a nonce for HEAD requests', (done) => {
     let server = new TransportServer();
     request(server.app)
       .head('/')

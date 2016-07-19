@@ -10,12 +10,12 @@ const nock            = require('nock');
 const jose            = require('../lib/jose');
 const TransportClient = require('../lib/transport-client');
 
-describe('transport-level client', function() {
+describe('transport-level client', () => {
   afterEach(() => {
     nock.cleanAll();
   });
 
-  it('fails if no account key if is provided', function() {
+  it('fails if no account key if is provided', () => {
     try {
       new TransportClient({});
       assert.ok(false);
@@ -24,7 +24,7 @@ describe('transport-level client', function() {
     }
   });
 
-  it('performs a JSON GET request', function(done) {
+  it('performs a JSON GET request', (done) => {
     let content = {'result': true};
     nock('http://example.com')
       .get('/foo').reply(200, content);
@@ -37,7 +37,7 @@ describe('transport-level client', function() {
       .catch(done);
   });
 
-  it('performs a binary GET request', function(done) {
+  it('performs a binary GET request', (done) => {
     let content = 'asdf';
     nock('http://example.com')
       .get('/foo').reply(200, content);
@@ -51,7 +51,7 @@ describe('transport-level client', function() {
       .catch(done);
   });
 
-  it('polls until completion or timeout', function(done) {
+  it('polls until completion or timeout', (done) => {
     let test = (body => body.foo);
     nock('http://example.com')
       .get('/foo').reply(200, {})
@@ -73,7 +73,7 @@ describe('transport-level client', function() {
       .catch(() => { done(); });
   });
 
-  it('sends a POST with no preflight', function(done) {
+  it('sends a POST with no preflight', (done) => {
     let gotHEAD = false;
     let gotPOST = false;
     let nonce = 'foo';
@@ -109,7 +109,7 @@ describe('transport-level client', function() {
       .catch(done);
   });
 
-  it('sends a POST with preflight', function(done) {
+  it('sends a POST with preflight', (done) => {
     let gotHEAD = false;
     let gotPOST = false;
     let nonce = 'foo';
@@ -144,7 +144,7 @@ describe('transport-level client', function() {
       .catch(done);
   });
 
-  it('fails POST if preflight fails', function(done) {
+  it('fails POST if preflight fails', (done) => {
     nock('http://example.com')
       .head('/foo').reply(200);
 

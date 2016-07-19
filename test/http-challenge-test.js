@@ -6,12 +6,12 @@ const HTTP01Challenge = require('../lib/challenges/http-challenge.js');
 
 const thumbprint = 'p3wl28h-9g3g1r6eIGORS5usGW79TUjL6fo_T5xRhAQ';
 
-describe('http-01 challenge', function() {
+describe('http-01 challenge', () => {
   afterEach(() => {
     nock.cleanAll();
   });
 
-  it('updates and does a query', function(done) {
+  it('updates and does a query', (done) => {
     let challenge = new HTTP01Challenge('example.com', thumbprint);
     assert.equal(challenge.status, 'pending');
 
@@ -32,7 +32,7 @@ describe('http-01 challenge', function() {
       .catch(done);
   });
 
-  it('rejects a response with the wrong type', function(done) {
+  it('rejects a response with the wrong type', (done) => {
     let challenge = new HTTP01Challenge('example.com', thumbprint);
     let response = {
       type:             'not-http',
@@ -47,7 +47,7 @@ describe('http-01 challenge', function() {
       .catch(done);
   });
 
-  it('rejects a response with the wrong keyAuthorization', function(done) {
+  it('rejects a response with the wrong keyAuthorization', (done) => {
     let challenge = new HTTP01Challenge('example.com', thumbprint);
     let response = {
       type:             HTTP01Challenge.type,
@@ -62,7 +62,7 @@ describe('http-01 challenge', function() {
       .catch(done);
   });
 
-  it('rejects a bad validation response', function(done) {
+  it('rejects a bad validation response', (done) => {
     let challenge = new HTTP01Challenge('example.com', thumbprint);
     assert.equal(challenge.status, 'pending');
 
@@ -83,7 +83,7 @@ describe('http-01 challenge', function() {
       .catch(done);
   });
 
-  it('invalidates on a server error', function(done) {
+  it('invalidates on a server error', (done) => {
     let challenge = new HTTP01Challenge('example.com', thumbprint);
     assert.equal(challenge.status, 'pending');
 
@@ -104,7 +104,7 @@ describe('http-01 challenge', function() {
       .catch(done);
   });
 
-  it('serializes properly', function(done) {
+  it('serializes properly', (done) => {
     let challenge = new HTTP01Challenge('example.com', thumbprint);
     let serialized = challenge.toJSON();
 

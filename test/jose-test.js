@@ -4,8 +4,8 @@ const assert   = require('chai').assert;
 const jose     = require('../lib/jose');
 const nodeJose = require('node-jose');
 
-describe('jose', function() {
-  it('generate + sign + verify', function(done) {
+describe('jose', () => {
+  it('generate + sign + verify', (done) => {
     let header = {'nonce': 2, 'url': 'asdf'};
     let content = {'foo': 'bar'};
 
@@ -35,7 +35,7 @@ describe('jose', function() {
     .catch(done);
   });
 
-  it('rejects non-flattened JWS', function(done) {
+  it('rejects non-flattened JWS', (done) => {
     let jws = {
       'protected':  true,
       'payload':    'AAAA',
@@ -50,7 +50,7 @@ describe('jose', function() {
     });
   });
 
-  it('refuses to sign JWS without required fields', function(done) {
+  it('refuses to sign JWS without required fields', (done) => {
     let header = {'foo': 'bar'};
     let content = {'foo': 'bar'};
 
@@ -67,7 +67,7 @@ describe('jose', function() {
     });
   });
 
-  it('rejects verification of JWS without required fields', function(done) {
+  it('rejects verification of JWS without required fields', (done) => {
     let header = {
       'alg': 'ES256',
       'jwk': {}
