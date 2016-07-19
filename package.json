@@ -12,7 +12,7 @@
     "doc": "documentation build -g -f html -o doc lib/",
     "ci": "npm run coverage -s && cat ./coverage/lcov.info | coveralls",
     "live": "live-server --port=4003 --ignorePattern='(js|css|png)$' coverage/lcov-report",
-    "watch": "watch 'npm run coverage' lib/",
+    "watch": "watch 'npm run coverage' lib/ lib/challenges test/",
     "dev": "npm-run-all -p --silent watch live",
     "release": "npm version patch && git push --follow-tags && npm publish"
   },
