@@ -108,8 +108,6 @@ describe('http-01 challenge', function() {
     let challenge = new HTTP01Challenge('example.com', thumbprint);
     let serialized = challenge.toJSON();
 
-    console.log(serialized);
-
     assert.property(serialized, 'type');
     assert.property(serialized, 'status');
     assert.property(serialized, 'token');
