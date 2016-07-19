@@ -53,6 +53,7 @@
   "devDependencies": {
     "body-parser": "latest",
     "chai": "latest",
+    "coveralls": "^2.11.11",
     "documentation": "latest",
     "eslint": "latest",
     "istanbul": "latest",
