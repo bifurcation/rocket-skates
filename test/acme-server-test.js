@@ -43,6 +43,9 @@ describe('ACME server', () => {
       .then(res => {
         assert.equal(res.status, 200);
 
+        assert.property(res.headers, 'content-type');
+        assert.include(res.headers['content-type'], 'application/json');
+
         assert.property(res.body, 'meta');
         assert.isObject(res.body.meta);
         assert.property(res.body.meta, 'terms-of-service');
@@ -59,9 +62,10 @@ describe('ACME server', () => {
   it('answers a valid fetch', (done) => {
     let server = new ACMEServer(serverConfig);
     let reg = {
-      type:    function() { return 'foo'; },
-      id:      'bar',
-      marshal: function() { return {baz: 42}; }
+      type:        function() { return 'foo'; },
+      id:          'bar',
+      marshal:     function() { return {baz: 42}; },
+      contentType: function() { return 'application/json'; }
     };
 
     server.db.put(reg);
@@ -69,6 +73,8 @@ describe('ACME server', () => {
       .then(res => {
         assert.equal(res.status, 200);
         assert.deepEqual(res.body, reg.marshal());
+        assert.property(res.headers, 'content-type');
+        assert.include(res.headers['content-type'], 'application/json');
         done();
       })
       .catch(done);
@@ -104,6 +110,8 @@ describe('ACME server', () => {
       .then(jws => promisify(testServer.post('/new-reg').send(jws)))
       .then(res => {
         assert.equal(res.status, 201);
+        assert.property(res.headers, 'content-type');
+        assert.include(res.headers['content-type'], 'application/json');
 
         assert.property(res.headers, 'location');
         assert.property(res.headers, 'replay-nonce');
@@ -328,7 +336,9 @@ describe('ACME server', () => {
   it('rejects a new application with an invalid notBefore', () => {});
   it('rejects a new application with an invalid notAfter', () => {});
 
-  it('issues a certificate', (done) => {
+  it('issues a certificate', function(done) {
+    this.timeout(10000);
+
     let server = new ACMEServer(serverConfig);
 
     let nonce = server.transport.nonces.get();
@@ -408,6 +418,17 @@ describe('ACME server', () => {
         assert.equal(res.body.status, 'valid');
         assert.property(res.body, 'certificate');
         assert.isString(res.body.certificate);
+
+        let certPath = path(res.body.certificate);
+        return promisify(testServer.get(certPath));
+      })
+      .then(res => {
+        assert.equal(res.status, 200);
+
+        assert.property(res.headers, 'content-type');
+        assert.include(res.headers['content-type'], 'application/pkix-cert');
+        // TODO: Test that the returned value is a valid certificate
+
         done();
       })
       .catch(done);
