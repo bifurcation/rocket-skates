@@ -34,7 +34,7 @@ describe('transport-level server', () => {
       res.json(result);
     });
 
-    mockClient.makeJWS(nonce, 'http://0.0.0.0/foo', payload)
+    mockClient.makeJWS(nonce, 'http://127.0.0.1/foo', payload)
       .then(jws => promisify(request(server.app).post('/foo').send(jws)))
       .then(res => {
         assert.equal(res.status, 200);
@@ -52,7 +52,7 @@ describe('transport-level server', () => {
   it('rejects a POST with a bad nonce', (done) => {
     let server = new TransportServer();
 
-    mockClient.makeJWS('asdf', 'http://0.0.0.0/foo?bar=baz', {})
+    mockClient.makeJWS('asdf', 'http://127.0.0.1/foo?bar=baz', {})
       .then(jws => {
         request(server.app)
           .post('/foo?bar=baz')

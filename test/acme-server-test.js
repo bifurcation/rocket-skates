@@ -14,7 +14,7 @@ const AutoChallenge = require('./tools/auto-challenge');
 const ACMEServer    = require('../lib/acme-server');
 
 let serverConfig = {
-  host:               '0.0.0.0',
+  host:               '127.0.0.1',
   authzExpirySeconds: 30 * 24 * 3600,
   challengeTypes:     [AutoChallenge]
 };
