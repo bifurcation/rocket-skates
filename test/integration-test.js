@@ -32,19 +32,20 @@ describe('transport-level client/server integration', () => {
     let p = new Promise(res => {
       httpServer = server.app.listen(PORT, () => res());
     });
-    p.then(() => { return jose.newkey(); })
-      .then(k => {
-        let client = new TransportClient({accountKey: k});
-        return client.post(url, query);
-      })
-      .then(body => {
-        assert.isTrue(gotPOST);
-        assert.deepEqual(body, result);
-      })
-      .then(() => {
-        httpServer.close();
-        done();
-      })
-      .catch(done);
-  });
+    p
+      .then(() => { return jose.newkey(); })
+        .then(k => {
+          let client = new TransportClient({accountKey: k});
+          return client.post(url, query);
+        })
+        .then(body => {
+          assert.isTrue(gotPOST);
+          assert.deepEqual(body, result);
+        })
+        .then(() => {
+          httpServer.close();
+          done();
+        })
+        .catch(done);
+    });
 });

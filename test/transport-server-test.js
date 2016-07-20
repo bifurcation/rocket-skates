@@ -53,12 +53,12 @@ describe('transport-level server', () => {
     let server = new TransportServer();
 
     mockClient.makeJWS('asdf', 'http://0.0.0.0/foo?bar=baz', {})
-    .then(jws => {
-      request(server.app)
-        .post('/foo?bar=baz')
-        .send(jws)
-        .expect(400, done);
-    });
+      .then(jws => {
+        request(server.app)
+          .post('/foo?bar=baz')
+          .send(jws)
+          .expect(400, done);
+      });
   });
 
   it('rejects a POST with a bad url', (done) => {
@@ -66,12 +66,12 @@ describe('transport-level server', () => {
     let nonce = server.nonces.get();
 
     mockClient.makeJWS(nonce, 'http://example.com/stuff', {})
-    .then(jws => {
-      request(server.app)
-        .post('/foo?bar=baz')
-        .send(jws)
-        .expect(400, done);
-    });
+      .then(jws => {
+        request(server.app)
+          .post('/foo?bar=baz')
+          .send(jws)
+          .expect(400, done);
+      });
   });
 
   it('provides a nonce for GET requests', (done) => {
