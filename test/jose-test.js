@@ -15,29 +15,29 @@ describe('jose', () => {
     let content = {'foo': 'bar'};
 
     jose.newkey()
-    .then(k => {
-      assert.ok(nodeJose.JWK.isKey(k));
-      return k;
-    })
-    .then(k => jose.sign(k, content, header))
-    .then(jws => {
-      assert.ok(jws.protected);
-      assert.ok(!jws.header);
-      assert.ok(jws.payload);
-      assert.ok(jws.signature);
+      .then(k => {
+        assert.ok(nodeJose.JWK.isKey(k));
+        return k;
+      })
+      .then(k => jose.sign(k, content, header))
+      .then(jws => {
+        assert.ok(jws.protected);
+        assert.ok(!jws.header);
+        assert.ok(jws.payload);
+        assert.ok(jws.signature);
 
-      let payloadBytes = nodeJose.util.base64url.decode(jws.payload);
-      let payloadJSON = nodeJose.util.utf8.encode(payloadBytes);
-      let payload = JSON.parse(payloadJSON);
-      assert.deepEqual(content, payload);
-      return jws;
-    })
-    .then(jose.verify)
-    .then(result => {
-      assert.deepEqual(content, result.payload);
-      done();
-    })
-    .catch(done);
+        let payloadBytes = nodeJose.util.base64url.decode(jws.payload);
+        let payloadJSON = nodeJose.util.utf8.encode(payloadBytes);
+        let payload = JSON.parse(payloadJSON);
+        assert.deepEqual(content, payload);
+        return jws;
+      })
+      .then(jose.verify)
+      .then(result => {
+        assert.deepEqual(content, result.payload);
+        done();
+      })
+      .catch(done);
   });
 
   it('rejects non-flattened JWS', (done) => {
@@ -48,11 +48,11 @@ describe('jose', () => {
     };
 
     jose.verify(jws)
-    .then(() => { assert.ok(false); })
-    .catch(err => {
-      assert.ok(err);
-      done();
-    });
+      .then(() => { assert.ok(false); })
+      .catch(err => {
+        assert.ok(err);
+        done();
+      });
   });
 
   it('refuses to sign JWS without required fields', (done) => {
@@ -60,16 +60,16 @@ describe('jose', () => {
     let content = {'foo': 'bar'};
 
     jose.newkey()
-    .then(k => {
-      assert.ok(nodeJose.JWK.isKey(k));
-      return k;
-    })
-    .then(k => jose.sign(k, content, header))
-    .then(() => { assert.ok(false); })
-    .catch(err => {
-      assert.ok(err);
-      done();
-    });
+      .then(k => {
+        assert.ok(nodeJose.JWK.isKey(k));
+        return k;
+      })
+      .then(k => jose.sign(k, content, header))
+      .then(() => { assert.ok(false); })
+      .catch(err => {
+        assert.ok(err);
+        done();
+      });
   });
 
   it('rejects verification of JWS without required fields', (done) => {
@@ -88,10 +88,10 @@ describe('jose', () => {
     };
 
     jose.verify(jws)
-    .then(() => { assert.ok(false); })
-    .catch(err => {
-      assert.ok(err);
-      done();
-    });
+      .then(() => { assert.ok(false); })
+      .catch(err => {
+        assert.ok(err);
+        done();
+      });
   });
 });
