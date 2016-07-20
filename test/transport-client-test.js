@@ -85,14 +85,14 @@ describe('transport-level client', () => {
       .post('/foo').reply((uri, jws, cb) => {
         gotPOST = true;
         jose.verify(jws)
-        .then(result => {
-          assert.equal(result.header.nonce, nonce);
-          assert.ok(result.header.url);
-          cb(null, [200, '']);
-        })
-        .catch(err => {
-          cb(null, [400, err.message]);
-        });
+          .then(result => {
+            assert.equal(result.header.nonce, nonce);
+            assert.ok(result.header.url);
+            cb(null, [200, '']);
+          })
+          .catch(err => {
+            cb(null, [400, err.message]);
+          });
       });
 
     jose.newkey()
@@ -121,14 +121,14 @@ describe('transport-level client', () => {
       .post('/foo').reply((uri, jws, cb) => {
         gotPOST = true;
         jose.verify(jws)
-        .then(result => {
-          assert.equal(result.header.nonce, nonce);
-          assert.ok(result.header.url);
-          cb(null, [200, '', {'replay-nonce': nonce}]);
-        })
-        .catch(err => {
-          cb(null, [400, err.message]);
-        });
+          .then(result => {
+            assert.equal(result.header.nonce, nonce);
+            assert.ok(result.header.url);
+            cb(null, [200, '', {'replay-nonce': nonce}]);
+          })
+          .catch(err => {
+            cb(null, [400, err.message]);
+          });
       });
 
     jose.newkey()
