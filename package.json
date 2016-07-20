@@ -59,6 +59,7 @@
     "mocha": "latest",
     "nock": "latest",
     "npm-run-all": "latest",
+    "pem": "^1.8.3",
     "rimraf": "latest",
     "supertest": "^0.0",
     "temp": "latest",
