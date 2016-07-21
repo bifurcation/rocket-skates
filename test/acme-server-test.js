@@ -51,9 +51,10 @@ describe('ACME server', () => {
         assert.property(res.body.meta, 'terms-of-service');
         assert.equal(res.body.meta['terms-of-service'], termsURL);
 
+        // Add things here as they get added to the directory
         assert.property(res.body, 'new-reg');
         assert.property(res.body, 'new-app');
-        // TODO Add things here as they get added to the directory
+
         done();
       })
       .catch(done);
@@ -427,7 +428,7 @@ describe('ACME server', () => {
 
         assert.property(res.headers, 'content-type');
         assert.include(res.headers['content-type'], 'application/pkix-cert');
-        // TODO: Test that the returned value is a valid certificate
+        // XXX(#22): Test that the returned value is a valid certificate
 
         done();
       })
