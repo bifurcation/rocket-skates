@@ -11,13 +11,14 @@ const jose       = require('../lib/jose');
 const ACMEClient = require('../lib/acme-client');
 
 
-describe('transport-level client', () => {
+describe('ACME client', () => {
   let directoryURL = 'http://example.com/directory';
   let directory = {
     'meta': {
       'terms-of-service': 'http://example.com/terms'
     },
-    'new-reg': 'http://example.com/new-reg'
+    'new-reg': 'http://example.com/new-reg',
+    'new-app': 'http://example.com/new-app'
   };
   let server = nock('http://example.com');
 
@@ -169,6 +170,116 @@ describe('transport-level client', () => {
   it('fails if there is no key', () => {});
   it('fails if there is an incorrect key', () => {});
   it('fails if the user declines terms', () => {});
+
+  it('requests a certificate', (done) => {
+    let csr = 'todo';
+    let notBefore = new Date();
+    let notAfter = new Date();
+    notAfter.setTime(notBefore.getTime() + 7 * 24 * 3600);
+
+    let stub = {
+      csr:       csr,
+      notBefore: notBefore.toJSON(),
+      notAfter:  notAfter.toJSON()
+    };
+    let app = {
+      csr:       csr,
+      notBefore: notBefore,
+      notAfter:  notAfter,
+
+      status:  'pending',
+      expires: notAfter,
+
+      requirements: [{
+        type:   'authorization',
+        status: 'pending',
+        url:    'http://example.com/authz/asdf'
+      }]
+    };
+    let newAppHeaders = {
+      location:       'http://example.com/app/asdf',
+      'replay-nonce': 'foo'
+    };
+    // TODO make this constructed from a tool
+    let autoChallenge = {
+      type:  'auto',
+      url:   'http://example.com/authz/asdf/0',
+      token: '12345'
+    };
+    let authz = {
+      identifier: {
+        type:  'dns',
+        value: 'not-example.com'
+      },
+      status:     'pending',
+      challenges: [autoChallenge]
+    };
+    let completed = {};
+    Object.assign(completed, app);
+    completed.status = 'valid';
+    completed.certificate = 'http://example.com/cert/asdf';
+
+    let gotNewApp = false;
+    let gotAuthzFetch = false;
+    server.get('/directory').reply(200, directory)
+          .head('/new-app').reply(200, '', {'replay-nonce': 'foo'})
+          .post('/new-app')
+          .reply((uri, jws, cb) => {
+            gotNewApp = true;
+            return jose.verify(jws)
+              .then(verified => {
+                assert.deepEqual(verified.payload, stub);
+                cb(null, [201, app, newAppHeaders]);
+              })
+              .catch(e => {
+                cb(null, [501, e.message]);
+              });
+          })
+          .get('/authz/asdf').reply((uri, jws, cb) => {
+            gotAuthzFetch = true;
+            cb(null, [201, authz]);
+          })
+          .post('/authz/asdf/0')
+          .reply((uri, jws, cb) => {
+            // TODO gotChallengePost = true;
+            return jose.verify(jws)
+              .then(() => {
+                cb(null, [200, autoChallenge]);
+              })
+              .catch(e => {
+                cb(null, [501, e.message]);
+              });
+          })
+          .get('/app/asdf').reply(200, app)
+          .get('/app/asdf').reply(200, app)
+          .get('/app/asdf').reply(200, completed)
+          .get('/cert/asdf').reply(200, completed)
+          .get('/cert/asdf').reply(200, completed);
+
+    jose.newkey()
+      .then(key => {
+        let client = new ACMEClient({
+          accountKey:   key,
+          directoryURL: directoryURL
+        });
+
+        client.registrationURL = 'non-null';
+        return client.requestCertificate(csr, notBefore, notAfter);
+      })
+      .then(() => {
+        assert.isTrue(gotNewApp);
+        assert.isTrue(gotAuthzFetch);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('fetches an auto-issued certificate', () => {});
+  it('fails if unregistered', () => {});
+  it('fails if there is no new-app endpoint', () => {});
+  it('fails if there is no location (new-app)', () => {});
+  it('fails if no certificate is provided for a valid application', () => {});
+
 
   /*
   it('performs a registration', (done) => {
