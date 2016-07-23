@@ -37,9 +37,9 @@ describe('transport-level client/server integration', () => {
         let client = new TransportClient({accountKey: k});
         return client.post(url, query);
       })
-      .then(body => {
+      .then(response => {
         assert.isTrue(gotPOST);
-        assert.deepEqual(body, result);
+        assert.deepEqual(response.body, result);
       })
       .then(() => {
         httpServer.close();
