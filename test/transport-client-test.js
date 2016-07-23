@@ -15,7 +15,7 @@ describe('transport-level client', () => {
     nock.cleanAll();
   });
 
-  it('fails if no account key if is provided', () => {
+  it('fails if no account key is provided', () => {
     try {
       new TransportClient({});
       assert.ok(false);
@@ -26,12 +26,19 @@ describe('transport-level client', () => {
 
   it('performs a JSON GET request', (done) => {
     let content = {'result': true};
+    let headers = {
+      'location': 'https://example.com/asdf',
+      'link':     '<https://example.com/terms>; rel="terms-of-service"'
+    };
     nock('http://example.com')
-      .get('/foo').reply(200, content);
+      .get('/foo').reply(200, content, headers);
 
     TransportClient.get('http://example.com/foo')
-      .then(body => {
-        assert.deepEqual(body, content);
+      .then(response => {
+        assert.equal(response.location, headers.location);
+        assert.property(response.links, 'terms-of-service');
+        assert.deepEqual(response.links['terms-of-service'].url, 'https://example.com/terms');
+        assert.deepEqual(response.body, content);
         done();
       })
       .catch(done);
@@ -43,9 +50,9 @@ describe('transport-level client', () => {
       .get('/foo').reply(200, content);
 
     TransportClient.get('http://example.com/foo', true)
-      .then(body => {
-        assert.isTrue(body instanceof Buffer);
-        assert.equal(body.toString(), content);
+      .then(response => {
+        assert.isTrue(response.body instanceof Buffer);
+        assert.equal(response.body.toString(), content);
         done();
       })
       .catch(done);
@@ -77,6 +84,10 @@ describe('transport-level client', () => {
     let gotHEAD = false;
     let gotPOST = false;
     let nonce = 'foo';
+    let headers = {
+      'location': 'https://example.com/asdf',
+      'link':     '<https://example.com/terms>; rel="terms-of-service"'
+    };
     nock('http://example.com')
       .head('/foo').reply((uri, requestBody, cb) => {
         gotHEAD = true;
@@ -88,7 +99,7 @@ describe('transport-level client', () => {
           .then(result => {
             assert.equal(result.header.nonce, nonce);
             assert.ok(result.header.url);
-            cb(null, [200, '']);
+            cb(null, [200, '', headers]);
           })
           .catch(err => {
             cb(null, [400, err.message]);
@@ -101,9 +112,14 @@ describe('transport-level client', () => {
         client.nonces.push(nonce);
         return client.post('http://example.com/foo', {'foo': 'bar'});
       })
-      .then(() => {
+      .then(response => {
         assert.isFalse(gotHEAD);
         assert.isTrue(gotPOST);
+
+        assert.equal(response.location, 'https://example.com/asdf');
+        assert.property(response.links, 'terms-of-service');
+        assert.deepEqual(response.links['terms-of-service'].url, 'https://example.com/terms');
+
         done();
       })
       .catch(done);
