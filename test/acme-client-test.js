@@ -5,10 +5,11 @@
 
 'use strict';
 
-const assert     = require('chai').assert;
-const nock       = require('nock');
-const jose       = require('../lib/jose');
-const ACMEClient = require('../lib/acme-client');
+const assert         = require('chai').assert;
+const nock           = require('nock');
+const jose           = require('../lib/jose');
+const AutoValidation = require('./tools/auto-validation');
+const ACMEClient     = require('../lib/acme-client');
 
 
 describe('ACME client', () => {
@@ -200,7 +201,6 @@ describe('ACME client', () => {
       location:       'http://example.com/app/asdf',
       'replay-nonce': 'foo'
     };
-    // TODO make this constructed from a tool
     let autoChallenge = {
       type:  'auto',
       url:   'http://example.com/authz/asdf/0',
@@ -221,6 +221,7 @@ describe('ACME client', () => {
 
     let gotNewApp = false;
     let gotAuthzFetch = false;
+    let gotChallengePOST = false;
     server.get('/directory').reply(200, directory)
           .head('/new-app').reply(200, '', {'replay-nonce': 'foo'})
           .post('/new-app')
@@ -241,7 +242,7 @@ describe('ACME client', () => {
           })
           .post('/authz/asdf/0')
           .reply((uri, jws, cb) => {
-            // TODO gotChallengePost = true;
+            gotChallengePOST = true;
             return jose.verify(jws)
               .then(() => {
                 cb(null, [200, autoChallenge]);
@@ -253,14 +254,14 @@ describe('ACME client', () => {
           .get('/app/asdf').reply(200, app)
           .get('/app/asdf').reply(200, app)
           .get('/app/asdf').reply(200, completed)
-          .get('/cert/asdf').reply(200, completed)
           .get('/cert/asdf').reply(200, completed);
 
     jose.newkey()
       .then(key => {
         let client = new ACMEClient({
-          accountKey:   key,
-          directoryURL: directoryURL
+          accountKey:      key,
+          directoryURL:    directoryURL,
+          validationTypes: [AutoValidation]
         });
 
         client.registrationURL = 'non-null';
@@ -269,6 +270,7 @@ describe('ACME client', () => {
       .then(() => {
         assert.isTrue(gotNewApp);
         assert.isTrue(gotAuthzFetch);
+        assert.isTrue(gotChallengePOST);
         done();
       })
       .catch(done);
