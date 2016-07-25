@@ -6,9 +6,11 @@
 'use strict';
 
 class AutoValidation {
-  static respond(transport, challenge) {
-    return transport.post(challenge.url, {token: challenge.token});
+  static makeResponse(key, challenge) {
+    return Promise.resolve({token: challenge.token});
   }
+
+  static respond() {}
 }
 
 AutoValidation.type = 'auto';

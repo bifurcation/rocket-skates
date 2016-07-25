@@ -11,6 +11,7 @@ const urlParse      = require('url');
 const MockClient    = require('./tools/mock-client');
 const promisify     = require('./tools/promisify');
 const AutoChallenge = require('./tools/auto-challenge');
+const jose          = require('../lib/jose');
 const ACMEServer    = require('../lib/acme-server');
 
 let serverConfig = {
@@ -154,7 +155,7 @@ describe('ACME server', () => {
       })
       .then(tpBuffer => {
         let existing = {
-          id:   tpBuffer.toString('hex'),
+          id:   jose.base64url.encode(tpBuffer),
           type: function() { return 'reg'; }
         };
         server.db.put(existing);
@@ -183,7 +184,7 @@ describe('ACME server', () => {
     mockClient.key()
       .then(k => k.thumbprint())
       .then(tpBuffer => {
-        thumbprint = tpBuffer.toString('hex');
+        thumbprint = jose.base64url.encode(tpBuffer);
         let url = `${server.baseURL}reg/${thumbprint}`;
         return mockClient.makeJWS(nonce, url, reg2);
       })
@@ -217,7 +218,8 @@ describe('ACME server', () => {
         assert.deepEqual(res.body.contact, reg2.contact);
         assert.deepEqual(res.body.agreement, reg2.agreement);
         done();
-      });
+      })
+      .catch(done);
   });
 
   it('creates a new application', (done) => {
@@ -236,7 +238,7 @@ describe('ACME server', () => {
     mockClient.key()
       .then(k => k.thumbprint())
       .then(tpBuffer => {
-        thumbprint = tpBuffer.toString('hex');
+        thumbprint = jose.base64url.encode(tpBuffer);
         return mockClient.makeJWS(nonce, url, app);
       })
       .then(jws => {
@@ -356,7 +358,7 @@ describe('ACME server', () => {
     mockClient.key()
       .then(k => k.thumbprint())
       .then(tpBuffer => {
-        thumbprint = tpBuffer.toString('hex');
+        thumbprint = jose.base64url.encode(tpBuffer);
         return mockClient.makeJWS(nonce, url, app);
       })
       .then(jws => {
