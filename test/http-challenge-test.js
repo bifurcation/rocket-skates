@@ -21,7 +21,7 @@ describe('http-01 challenge', () => {
     let challenge = new HTTP01Challenge(name, thumbprint);
     assert.equal(challenge.status, 'pending');
 
-    let server = nock(`http://${name}`)
+    let server = nock(`http://${name}:${HTTP01Challenge.port}`)
       .get(`/.well-known/acme-challenge/${challenge.token}`)
       .reply(200, challenge._keyAuthorization);
 
@@ -72,7 +72,7 @@ describe('http-01 challenge', () => {
     let challenge = new HTTP01Challenge(name, thumbprint);
     assert.equal(challenge.status, 'pending');
 
-    let server = nock(`http://${name}`)
+    let server = nock(`http://${name}:${HTTP01Challenge.port}`)
       .get(`/.well-known/acme-challenge/${challenge.token}`)
       .reply(200, 'not what you are looking for');
 
@@ -93,7 +93,7 @@ describe('http-01 challenge', () => {
     let challenge = new HTTP01Challenge(name, thumbprint);
     assert.equal(challenge.status, 'pending');
 
-    let server = nock(`http://${name}`)
+    let server = nock(`http://${name}:${HTTP01Challenge.port}`)
       .get(`/.well-known/acme-challenge/${challenge.token}`)
       .reply(404);
 
@@ -119,7 +119,7 @@ describe('http-01 challenge', () => {
     assert.property(serialized, 'token');
     assert.notProperty(serialized, 'keyAuthorization');
 
-    nock('http://${name}')
+    nock(`http://${name}:${HTTP01Challenge.port}`)
       .get('/.well-known/acme-challenge/' + challenge.token)
       .reply(200, challenge._keyAuthorization);
     let response = {

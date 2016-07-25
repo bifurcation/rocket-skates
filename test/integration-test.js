@@ -5,10 +5,12 @@
 
 'use strict';
 
-const assert          = require('chai').assert;
-const jose            = require('../lib/jose');
-const TransportClient = require('../lib/transport-client');
-const TransportServer = require('../lib/transport-server');
+const assert           = require('chai').assert;
+const jose             = require('../lib/jose');
+const TransportClient  = require('../lib/transport-client');
+const TransportServer  = require('../lib/transport-server');
+const HTTP01Challenge  = require('../lib/challenges/http-challenge');
+const HTTP01Validation = require('../lib/validations/http-validation');
 
 const PORT = 4430;
 
@@ -43,6 +45,50 @@ describe('transport-level client/server integration', () => {
       })
       .then(() => {
         httpServer.close();
+        done();
+      })
+      .catch(done);
+  });
+});
+
+describe('http-01 challenge/validation integration', () => {
+  HTTP01Challenge.port = 8080;
+  HTTP01Validation.port = 8080;
+
+  it('completes', (done) => {
+    let key;
+    let challengeObj;
+    let challenge;
+    let response;
+
+    jose.newkey()
+      .then(k => {
+        key = k;
+        return key.thumbprint();
+      })
+      .then(tpBuf => {
+        let thumbprint = jose.base64url.encode(tpBuf);
+        challengeObj = new HTTP01Challenge('localhost', thumbprint);
+        challenge = challengeObj.toJSON();
+        return HTTP01Validation.makeResponse(key, challenge);
+      })
+      .then(res => {
+        response = res;
+
+        // On the one side
+        let p = new Promise(resolve => {
+          HTTP01Validation.respond(challenge, response, () => {
+            resolve(true);
+          });
+        });
+
+        // On the other side
+        return p.then(() => {
+          return challengeObj.update(response);
+        });
+      })
+      .then(() => {
+        assert.equal(challengeObj.status, 'valid');
         done();
       })
       .catch(done);
