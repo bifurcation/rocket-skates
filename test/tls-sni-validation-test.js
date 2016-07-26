@@ -5,15 +5,16 @@
 
 'use strict';
 
-//const assert             = require('chai').assert;
-//const dns                = require('native-dns');
-//const Promise            = require('bluebird');
-//const crypto             = require('crypto');
-//const jose               = require('../lib/jose');
-//const TLSSNI02Validation = require('../lib/validations/tls-sni-validation');
+const assert             = require('chai').assert;
+const tls                = require('tls');
+const Promise            = require('bluebird');
+const crypto             = require('crypto');
+const jose               = require('../lib/jose');
+const TLSSNI02Validation = require('../lib/validations/tls-sni-validation');
 
-describe('tls-sni-01 validation', () => {
-  /*
+TLSSNI02Validation.port = 4430;
+
+describe('tls-sni-02 validation', () => {
   it('creates a correct response', (done) => {
     let challenge = {
       url:   'http://localhost:8081/chall/asdf',
@@ -38,7 +39,7 @@ describe('tls-sni-01 validation', () => {
       .catch(done);
   });
 
-  it('fulfills an dns-01 challenge', (done) => {
+  it('fulfills an  challenge', (done) => {
     let challenge = {
       url:   'http://localhost:8081/chall/asdf',
       token: '12345'
@@ -46,58 +47,55 @@ describe('tls-sni-01 validation', () => {
     let response = {
       keyAuthorization: '12345.asdf'
     };
-    let keyAuthorizationHashBuf = crypto.createHash('sha256')
-                                        .update(response.keyAuthorization, 'utf8')
-                                        .digest();
-    let keyAuthorizationHash = jose.base64url.encode(keyAuthorizationHashBuf);
+
+    let tokenHash = crypto.createHash('sha256')
+                          .update(challenge.token, 'utf8')
+                          .digest('hex').toLowerCase();
+    let keyAuthorizationHash = crypto.createHash('sha256')
+                                     .update(response.keyAuthorization, 'utf8')
+                                     .digest('hex').toLowerCase();
+
+    let sanA1 = tokenHash.substr(0, 32);
+    let sanA2 = tokenHash.substr(32);
+    let sanB1 = keyAuthorizationHash.substr(0, 32);
+    let sanB2 = keyAuthorizationHash.substr(32);
+    let sanA = `${sanA1}.${sanA2}.acme.invalid`;
+    let sanB = `${sanB1}.${sanB2}.acme.invalid`;
+
+    let options = {
+      host:               'localhost',
+      servername:         sanA,
+      port:               TLSSNI02Validation.port,
+      rejectUnauthorized: false
+    };
 
     let p = new Promise(resolve => {
       TLSSNI02Validation.respond('example.com', challenge, response, () => { resolve(); });
     });
 
-    let authName = '_acme-challenge.example.com';
-    let req = dns.Request({
-      question: dns.Question({name: authName, type: 'TXT'}),
-      server:   {
-        address: TLSSNI02Validation.resolver,
-        port:    TLSSNI02Validation.port
-      },
-      timeout: 2000
-    });
-
     p.then(() => Promise.delay(100))
       .then(() => {
         return new Promise((resolve, reject) => {
-          req.on('timeout', () => { reject('timeout'); });
-          req.on('message', (err, answer) => {
-            if (err) {
-              reject(err);
+          let stream = tls.connect(options, () => {
+            let san = stream.getPeerCertificate().subjectaltname;
+            stream.end();
+            if (!san) {
+              reject(new Error('No SAN in peer certificate'));
+              return;
             }
 
-            let results = answer.answer.map(a => {
-              if (!a.data || !(a.data instanceof Array)) {
-                return null;
-              }
-              return a.data.join('');
-            })
-              .filter(x => (x !== null));
-
-            if (results.length === 0) {
-              reject(new Error('No results'));
+            let foundSANA = (san.indexOf(`DNS:${sanA}`) > -1);
+            let foundSANB = (san.indexOf(`DNS:${sanB}`) > -1);
+            if (!foundSANA || !foundSANB) {
+              reject(new Error('Required SANs not found'));
+              return;
             }
 
-            resolve(results[0]);
+            resolve();
           });
-
-          req.send();
         });
       })
-      .timeout(1000)
-      .then(text => {
-        assert.equal(text, keyAuthorizationHash);
-        done();
-      })
+      .then(done)
       .catch(done);
   });
-  */
 });

@@ -13,7 +13,7 @@ const TLSSNI02Challenge = require('../lib/challenges/tls-sni-challenge.js');
 
 function newServer(names) {
   let options = {
-    commonName: names[0],
+    commonName: 'tls-sni.acme.invalid',
     altNames:   names,
     selfSigned: true
   };
@@ -46,8 +46,6 @@ const port = 4430;
 TLSSNI02Challenge.host = 'localhost';
 TLSSNI02Challenge.port = port;
 
-
-
 describe('tls-sni-02 challenge', () => {
   it('updates and does a query', done => {
     let challenge = new TLSSNI02Challenge(name, thumbprint);
@@ -59,7 +57,7 @@ describe('tls-sni-02 challenge', () => {
       type:             TLSSNI02Challenge.type,
       keyAuthorization: challenge._keyAuthorization
     };
-    newServer([name, challenge._sanA, challenge._sanB])
+    newServer([challenge._sanA, challenge._sanB])
       .then(srv => {
         server = srv;
         server.listen(port);
@@ -119,7 +117,7 @@ describe('tls-sni-02 challenge', () => {
       type:             TLSSNI02Challenge.type,
       keyAuthorization: challenge._keyAuthorization
     };
-    newServer([name, challenge._sanA]) // no SAN B
+    newServer([challenge._sanA]) // no SAN B
       .then(srv => {
         server = srv;
         server.listen(port);
@@ -154,7 +152,7 @@ describe('tls-sni-02 challenge', () => {
       type:             TLSSNI02Challenge.type,
       keyAuthorization: challenge._keyAuthorization
     };
-    newServer([name, challenge._sanA, challenge._sanB])
+    newServer([challenge._sanA, challenge._sanB])
       .then(srv => {
         server = srv;
         server.listen(port);
