@@ -11,6 +11,8 @@ const TransportClient  = require('../lib/transport-client');
 const TransportServer  = require('../lib/transport-server');
 const HTTP01Challenge  = require('../lib/challenges/http-challenge');
 const HTTP01Validation = require('../lib/validations/http-validation');
+const DNS01Challenge  = require('../lib/challenges/dns-challenge');
+const DNS01Validation = require('../lib/validations/dns-validation');
 
 const PORT = 4430;
 
@@ -77,7 +79,51 @@ describe('http-01 challenge/validation integration', () => {
 
         // On the one side
         let p = new Promise(resolve => {
-          HTTP01Validation.respond(challenge, response, () => {
+          HTTP01Validation.respond('localhost', challenge, response, () => {
+            resolve(true);
+          });
+        });
+
+        // On the other side
+        return p.then(() => {
+          return challengeObj.update(response);
+        });
+      })
+      .then(() => {
+        assert.equal(challengeObj.status, 'valid');
+        done();
+      })
+      .catch(done);
+  });
+});
+
+describe('dns-01 challenge/validation integration', () => {
+  DNS01Challenge.port = 5300;
+  DNS01Validation.port = 5300;
+
+  it('completes', (done) => {
+    let key;
+    let challengeObj;
+    let challenge;
+    let response;
+
+    jose.newkey()
+      .then(k => {
+        key = k;
+        return key.thumbprint();
+      })
+      .then(tpBuf => {
+        let thumbprint = jose.base64url.encode(tpBuf);
+        challengeObj = new DNS01Challenge('localhost', thumbprint);
+        challenge = challengeObj.toJSON();
+        return DNS01Validation.makeResponse(key, challenge);
+      })
+      .then(res => {
+        response = res;
+
+        // On the one side
+        let p = new Promise(resolve => {
+          DNS01Validation.respond('localhost', challenge, response, () => {
             resolve(true);
           });
         });
