@@ -49,7 +49,7 @@ describe('http-01 validation', () => {
     };
 
     let p = new Promise(resolve => {
-      HTTP01Validation.respond('localhost', challenge, response, () => { resolve(); });
+      HTTP01Validation.respond('localhost', challenge, response, resolve);
     });
 
     p.then(() => Promise.delay(100))
