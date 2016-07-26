@@ -7,7 +7,7 @@
     "clean": "rimraf doc/ coverage/",
     "lint": "eslint eslint lib/ test/",
     "pretest": "npm run lint",
-    "test": "mocha",
+    "test": "mocha --grep 'tls-sni-01'",
     "coverage": "istanbul cover _mocha test/*.js",
     "doc": "documentation build -g -f html -o doc lib/",
     "ci": "npm run coverage -s && cat ./coverage/lcov.info | coveralls",
