@@ -130,9 +130,12 @@ let csrs = {
   },
 
   noNames: {
-    attributes: [{name: 'extensionRequest', extensions: [
+    attributes: [{
+      name: 'extensionRequest',
+      extensions: [
       {name: 'subjectAltName', altNames: []}
-    ]}]
+      ]
+    }]
   },
 
   noCN: {
@@ -153,7 +156,6 @@ function errorOn(test) {
     let result = pki.checkCSR(parsed);
     assert.isObject(result);
     assert.property(result, 'error');
-    console.log(result.error);
   };
 }
 
