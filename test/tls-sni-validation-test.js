@@ -70,7 +70,7 @@ describe('tls-sni-02 validation', () => {
     };
 
     let p = new Promise(resolve => {
-      TLSSNI02Validation.respond('example.com', challenge, response, () => { resolve(); });
+      TLSSNI02Validation.respond('example.com', challenge, response, resolve);
     });
 
     p.then(() => Promise.delay(100))

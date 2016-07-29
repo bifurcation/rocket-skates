@@ -54,7 +54,7 @@ describe('dns-01 validation', () => {
     let keyAuthorizationHash = jose.base64url.encode(keyAuthorizationHashBuf);
 
     let p = new Promise(resolve => {
-      DNS01Validation.respond('example.com', challenge, response, () => { resolve(); });
+      DNS01Validation.respond('example.com', challenge, response, resolve);
     });
 
     let authName = '_acme-challenge.example.com';
