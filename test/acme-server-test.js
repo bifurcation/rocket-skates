@@ -11,6 +11,7 @@ const urlParse      = require('url');
 const MockClient    = require('./tools/mock-client');
 const promisify     = require('./tools/promisify');
 const AutoChallenge = require('./tools/auto-challenge');
+//const ZeroChallenge = require('./tools/zero-challenge');
 const jose          = require('../lib/jose');
 const ACMEServer    = require('../lib/acme-server');
 
@@ -33,6 +34,30 @@ class NotAChallenge {}
 
 function path(url) {
   return urlParse.parse(url).path;
+}
+
+function registerKey(key, server) {
+  let thumbprint;
+  return key.thumbprint()
+    .then(tpBuffer => {
+      thumbprint = jose.base64url.encode(tpBuffer);
+      let existing = {
+        id:      thumbprint,
+        key:     mockClient._key,
+        contact: ['mailto:anonymous@example.com'],
+        type:    function() { return 'reg'; },
+        marshal: function() {
+          return {
+            key:       this.key.toJSON(),
+            status:    this.status,
+            contact:   this.contact,
+            agreement: this.agreement
+          };
+        }
+      };
+      server.db.put(existing);
+      return thumbprint;
+    });
 }
 
 describe('ACME server', () => {
@@ -213,40 +238,21 @@ describe('ACME server', () => {
     let termsURL = 'https://example.com/terms';
     server.terms = termsURL;
 
-    let nonce = server.transport.nonces.get();
-    let thumbprint;
-
     let reg2 = {
-      contact:   ['mailto:someone@example.org'],
+      contact:   ['mailto:someone@example.com'],
       agreement: termsURL
     };
+    let regThumbprint;
 
     mockClient.key()
-      .then(k => k.thumbprint())
-      .then(tpBuffer => {
-        thumbprint = jose.base64url.encode(tpBuffer);
-        let url = `${server.baseURL}reg/${thumbprint}`;
+      .then(k => registerKey(k, server))
+      .then(thumbprint => {
+        regThumbprint = thumbprint;
+        let nonce = server.transport.nonces.get();
+        let url = `${server.baseURL}reg/${regThumbprint}`;
         return mockClient.makeJWS(nonce, url, reg2);
       })
-      .then(jws => {
-        let existing = {
-          id:      thumbprint,
-          key:     mockClient._key,
-          contact: ['mailto:anonymous@example.com'],
-          type:    function() { return 'reg'; },
-          marshal: function() {
-            return {
-              key:       this.key.toJSON(),
-              status:    this.status,
-              contact:   this.contact,
-              agreement: this.agreement
-            };
-          }
-        };
-        server.db.put(existing);
-
-        return promisify(request(server.app).post(`/reg/${existing.id}`).send(jws));
-      })
+      .then(jws => promisify(request(server.app).post(`/reg/${regThumbprint}`).send(jws)))
       .then(res => {
         assert.equal(res.status, 200);
 
@@ -283,34 +289,13 @@ describe('ACME server', () => {
     let termsURL = 'https://example.com/terms';
     server.terms = termsURL;
 
-    let nonce = server.transport.nonces.get();
-    let regKey;
     let regThumbprint;
-
     jose.newkey()
-      .then(k => {
-        regKey = k;
-        return regKey.thumbprint();
-      })
-      .then(tpBuffer => {
-        regThumbprint = jose.base64url.encode(tpBuffer);
-        let existing = {
-          id:      regThumbprint,
-          key:     regKey,
-          contact: ['mailto:anonymous@example.com'],
-          type:    function() { return 'reg'; },
-          marshal: function() {
-            return {
-              key:       this.key.toJSON(),
-              status:    this.status,
-              contact:   this.contact,
-              agreement: this.agreement
-            };
-          }
-        };
-        server.db.put(existing);
-
+      .then(k => registerKey(k, server))
+      .then(thumbprint => {
+        regThumbprint = thumbprint;
         let url = `${server.baseURL}reg/${regThumbprint}`;
+        let nonce = server.transport.nonces.get();
         return mockClient.makeJWS(nonce, url, {});
       })
       .then(jws => {
@@ -328,40 +313,21 @@ describe('ACME server', () => {
     let termsURL = 'https://example.com/terms';
     server.terms = termsURL;
 
-    let nonce = server.transport.nonces.get();
-    let thumbprint;
-
+    let regThumbprint;
     let reg2 = {
       contact:   ['mailto:someone@example.org'],
       agreement: termsURL + '-not!'
     };
 
     mockClient.key()
-      .then(k => k.thumbprint())
-      .then(tpBuffer => {
-        thumbprint = jose.base64url.encode(tpBuffer);
-        let url = `${server.baseURL}reg/${thumbprint}`;
+      .then(k => registerKey(k, server))
+      .then(thumbprint => {
+        regThumbprint = thumbprint;
+        let nonce = server.transport.nonces.get();
+        let url = `${server.baseURL}reg/${regThumbprint}`;
         return mockClient.makeJWS(nonce, url, reg2);
       })
-      .then(jws => {
-        let existing = {
-          id:      thumbprint,
-          key:     mockClient._key,
-          contact: ['mailto:anonymous@example.com'],
-          type:    function() { return 'reg'; },
-          marshal: function() {
-            return {
-              key:       this.key.toJSON(),
-              status:    this.status,
-              contact:   this.contact,
-              agreement: this.agreement
-            };
-          }
-        };
-        server.db.put(existing);
-
-        return promisify(request(server.app).post(`/reg/${existing.id}`).send(jws));
-      })
+      .then(jws => promisify(request(server.app).post(`/reg/${regThumbprint}`).send(jws)))
       .then(res => {
         assert.equal(res.status, 400);
         done();
@@ -371,10 +337,6 @@ describe('ACME server', () => {
 
   it('creates a new application', (done) => {
     let server = new ACMEServer(serverConfig);
-
-    let thumbprint;
-    let nonce = server.transport.nonces.get();
-    let url = server.baseURL + 'new-app';
     let app = {
       'csr':       testCSR,
       'notBefore': '2016-07-14T23:19:36.197Z',
@@ -383,30 +345,13 @@ describe('ACME server', () => {
 
     let testServer = request(server.app);
     mockClient.key()
-      .then(k => k.thumbprint())
-      .then(tpBuffer => {
-        thumbprint = jose.base64url.encode(tpBuffer);
+      .then(k => registerKey(k, server))
+      .then(() => {
+        let nonce = server.transport.nonces.get();
+        let url = server.baseURL + 'new-app';
         return mockClient.makeJWS(nonce, url, app);
       })
-      .then(jws => {
-        let existing = {
-          id:      thumbprint,
-          key:     mockClient._key,
-          contact: ['mailto:anonymous@example.com'],
-          type:    function() { return 'reg'; },
-          marshal: function() {
-            return {
-              key:       this.key.toJSON(),
-              status:    this.status,
-              contact:   this.contact,
-              agreement: this.agreement
-            };
-          }
-        };
-        server.db.put(existing);
-
-        return promisify(testServer.post('/new-app').send(jws));
-      })
+      .then(jws => promisify(testServer.post('/new-app').send(jws)))
       .then(res => {
         assert.equal(res.status, 201);
 
@@ -483,10 +428,6 @@ describe('ACME server', () => {
 
   it('rejects a fetch to a bad challenge URL', (done) => {
     let server = new ACMEServer(serverConfig);
-
-    let thumbprint;
-    let nonce = server.transport.nonces.get();
-    let url = server.baseURL + 'new-app';
     let app = {
       'csr':       testCSR,
       'notBefore': '2016-07-14T23:19:36.197Z',
@@ -495,30 +436,13 @@ describe('ACME server', () => {
 
     let testServer = request(server.app);
     mockClient.key()
-      .then(k => k.thumbprint())
-      .then(tpBuffer => {
-        thumbprint = jose.base64url.encode(tpBuffer);
+      .then(k => registerKey(k, server))
+      .then(() => {
+        let nonce = server.transport.nonces.get();
+        let url = server.baseURL + 'new-app';
         return mockClient.makeJWS(nonce, url, app);
       })
-      .then(jws => {
-        let existing = {
-          id:      thumbprint,
-          key:     mockClient._key,
-          contact: ['mailto:anonymous@example.com'],
-          type:    function() { return 'reg'; },
-          marshal: function() {
-            return {
-              key:       this.key.toJSON(),
-              status:    this.status,
-              contact:   this.contact,
-              agreement: this.agreement
-            };
-          }
-        };
-        server.db.put(existing);
-
-        return promisify(testServer.post('/new-app').send(jws));
-      })
+      .then(jws => promisify(testServer.post('/new-app').send(jws)))
       .then(res => {
         assert.equal(res.status, 201);
         assert.equal(res.body.requirements[0].type, 'authorization');
@@ -554,37 +478,15 @@ describe('ACME server', () => {
   function newAppError(app) {
     return (done) => {
       let server = new ACMEServer(serverConfig);
-
-      let thumbprint;
-      let nonce = server.transport.nonces.get();
-      let url = server.baseURL + 'new-app';
-
       let testServer = request(server.app);
       mockClient.key()
-        .then(k => k.thumbprint())
-        .then(tpBuffer => {
-          thumbprint = jose.base64url.encode(tpBuffer);
+        .then(k => registerKey(k, server))
+        .then(() => {
+          let nonce = server.transport.nonces.get();
+          let url = server.baseURL + 'new-app';
           return mockClient.makeJWS(nonce, url, app);
         })
-        .then(jws => {
-          let existing = {
-            id:      thumbprint,
-            key:     mockClient._key,
-            contact: ['mailto:anonymous@example.com'],
-            type:    function() { return 'reg'; },
-            marshal: function() {
-              return {
-                key:       this.key.toJSON(),
-                status:    this.status,
-                contact:   this.contact,
-                agreement: this.agreement
-              };
-            }
-          };
-          server.db.put(existing);
-
-          return promisify(testServer.post('/new-app').send(jws));
-        })
+        .then(jws => promisify(testServer.post('/new-app').send(jws)))
         .then(res => {
           assert.equal(res.status, 400);
           done();
@@ -625,43 +527,22 @@ describe('ACME server', () => {
     this.timeout(10000);
 
     let server = new ACMEServer(serverConfig);
-
-    let nonce = server.transport.nonces.get();
-    let url = server.baseURL + 'new-app';
     let app = {
       'csr':       testCSR,
       'notBefore': '2016-07-14T23:19:36.197Z',
       'notAfter':  '2017-07-14T23:19:36.197Z'
     };
 
-    let thumbprint;
     let appPath;
     let testServer = request(server.app);
     mockClient.key()
-      .then(k => k.thumbprint())
-      .then(tpBuffer => {
-        thumbprint = jose.base64url.encode(tpBuffer);
+      .then(k => registerKey(k, server))
+      .then(() => {
+        let nonce = server.transport.nonces.get();
+        let url = server.baseURL + 'new-app';
         return mockClient.makeJWS(nonce, url, app);
       })
-      .then(jws => {
-        let existing = {
-          id:      thumbprint,
-          key:     mockClient._key,
-          contact: ['mailto:anonymous@example.com'],
-          type:    function() { return 'reg'; },
-          marshal: function() {
-            return {
-              key:       this.key.toJSON(),
-              status:    this.status,
-              contact:   this.contact,
-              agreement: this.agreement
-            };
-          }
-        };
-        server.db.put(existing);
-
-        return promisify(testServer.post('/new-app').send(jws));
-      })
+      .then(jws => promisify(testServer.post('/new-app').send(jws)))
       .then(res => {
         assert.equal(res.status, 201);
 
@@ -763,4 +644,6 @@ describe('ACME server', () => {
       })
       .catch(done);
   });
+
+  it('auto-issues if all challenges are valid', () => {});
 });
