@@ -246,7 +246,7 @@ describe('PKI utilities module', () => {
     this.timeout(10000);
 
     let firstKeys;
-    localCA.generate()
+    localCA.keys()
       .then(keys => {
         assert.isObject(keys);
         assert.property(keys, 'privateKey');
@@ -260,6 +260,22 @@ describe('PKI utilities module', () => {
         done();
       })
       .catch(done);
+  });
+
+  it('fails when key generation fails', (done) => {
+    let gen = forge.rsa.generateKeyPair();
+    forge.rsa.generateKeyPair = (opts, callback) => {
+      callback('error');
+    };
+
+    let ca = new pki.CA();
+    ca.keys()
+      .then(() => { assert.isTrue(false); })
+      .catch(err => {
+        assert.equal(err, 'error');
+        forge.rsa.generateKeyPair = gen;
+        done();
+      });
   });
 
   it('issues a certificate with only a CSR', testIssue('justCSR'));
