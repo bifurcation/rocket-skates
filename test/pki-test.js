@@ -131,7 +131,7 @@ let csrs = {
 
   noNames: {
     attributes: [{
-      name: 'extensionRequest',
+      name:       'extensionRequest',
       extensions: [
       {name: 'subjectAltName', altNames: []}
       ]
@@ -151,11 +151,14 @@ let csrs = {
 
 function errorOn(test) {
   return () => {
-    let csr = generateCSR(csrs[test]);
-    let parsed = pki.parseCSR(csr);
-    let result = pki.checkCSR(parsed);
-    assert.isObject(result);
-    assert.property(result, 'error');
+    try {
+      let csr = generateCSR(csrs[test]);
+      let parsed = pki.parseCSR(csr);
+      pki.checkCSR(parsed);
+      assert.isTrue(false);
+    } catch (e) {
+      assert.isTrue(true);
+    }
   };
 }
 
@@ -176,10 +179,8 @@ describe('PKI utilities module', () => {
     let csr = generateCSR(csrs.valid);
     let parsed = pki.parseCSR(csr);
     let result = pki.checkCSR(parsed);
-    assert.isObject(result);
-    assert.notProperty(result, 'error');
-    assert.property(result, 'names');
-    assert.deepEqual(result.names, ['www2.example.com', 'example.com', 'www.example.com']);
+    assert.isArray(result);
+    assert.deepEqual(result, ['www2.example.com', 'example.com', 'www.example.com']);
   });
 
   it('rejects a CSR with DN components other than CN',          errorOn('nonCN'));

@@ -29,11 +29,31 @@ let mockClient = new MockClient();
 let testCSR = 'MIICoTCCAYkCAQAwGjEYMBYGA1UEAxMPbm90LWV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAq7F00dtBUeN9DHEiDRimh5OtlU0KDXw-B-04kBaZkTtXU-1G3GW-BG9p_M0PyT7NSn5rYcdzisajTQZJD-cQgltgevWARc8dkrIy4ogj4qihwagO-glAo20ZZoreibdL3cpOM2kmjRkkXDCFDXZF1kL8LhoKRg1H5dmkVcgw7ALr-AhRUHcvVmkv4XwGT_H1fzgutTCIMvEwnKIsn1lw6q5rK6pUktnsGQqJFrzJ_RUN_CK0BPg3BD9QOkwxXZ9ZTMttAIrZMuBA3wf_83_erI53s_46PMgLI3rDpPa9clqylSZGEDwXy8sLwQXSSuWCMLD_t99MZvDFcDjPSyJUaQIDAQABoEIwQAYJKoZIhvcNAQkOMTMwMTAvBgNVHREEKDAmgg9ub3QtZXhhbXBsZS5jb22CE3d3dy5ub3QtZXhhbXBsZS5jb20wDQYJKoZIhvcNAQEFBQADggEBAFoGL91KCrF1UaT-ZHOoC_SfXA9O2zsLHZDAqfcciqPn85pCUDntdbxiSAmfMt_K6PI-MqlWIR2ejZG7yYpT1Nx3UyDggRQiAS8WRPw8M9B43Ang5HnaOX2Y7q0J0TTGQXBO3Ts8advtQcvaOJMvpAborebQizzN0pzhMkBcAOgzZQVKWJvwqMzQsD5VJP8gw7i-HH3IROep3Ayu74gTDYvfVyMJEIbY1D4P3FcoUcc-K0mOYlIu1a8zS6KDCRj5rrhR1dmMj8bd_V6e9234lXHaZFTKDPcVowT8w9LwB4DJPzQu7b7grtynFV645q_-aSxPxJGmj7i-aayO-T00cUE';
 let testCSRNames = ['not-example.com', 'www.not-example.com'];
 
+class NotAChallenge {}
+
 function path(url) {
   return urlParse.parse(url).path;
 }
 
 describe('ACME server', () => {
+  it('refuses to create a server with no challenges', (done) => {
+    try {
+      new ACMEServer({challengeTypes: []});
+      done(new Error('Created a server with a bogus challenge'));
+    } catch (e) {
+      done();
+    }
+  });
+
+  it('refuses to create a server with bad challenges', (done) => {
+    try {
+      new ACMEServer({challengeTypes: [NotAChallenge]});
+      done(new Error('Created a server with a bogus challenge'));
+    } catch (e) {
+      done();
+    }
+  });
+
   it('responds to a directory request', (done) => {
     let server = new ACMEServer(serverConfig);
     let termsURL = 'https://example.com/terms';
@@ -138,6 +158,26 @@ describe('ACME server', () => {
       .catch(done);
   });
 
+  it('does a POST over a custom port', (done) => {
+    let server = new ACMEServer({
+      host:           '127.0.0.1',
+      port:           8080,
+      challengeTypes: [AutoChallenge]
+    });
+    let nonce = server.transport.nonces.get();
+    let url = server.baseURL + 'new-reg';
+    let reg = {contact: ['mailto:anonymous@example.com']};
+
+    let testServer = request(server.app);
+    mockClient.makeJWS(nonce, url, reg)
+      .then(jws => promisify(testServer.post('/new-reg').send(jws)))
+      .then(res => {
+        assert.equal(res.status, 201);
+        done();
+      })
+      .catch(done);
+  });
+
   it('rejects a new registration for an existing key', (done) => {
     let server = new ACMEServer(serverConfig);
     let termsURL = 'https://example.com/terms';
@@ -217,6 +257,113 @@ describe('ACME server', () => {
         assert.deepEqual(res.body.key, mockClient._key.toJSON());
         assert.deepEqual(res.body.contact, reg2.contact);
         assert.deepEqual(res.body.agreement, reg2.agreement);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('rejects a registration update to a non-existent registration', (done) => {
+    let server = new ACMEServer(serverConfig);
+    let nonce = server.transport.nonces.get();
+    let url = `${server.baseURL}reg/non-existent`;
+
+    mockClient.makeJWS(nonce, url, {})
+      .then(jws => {
+        return promisify(request(server.app).post('/reg/non-existent').send(jws));
+      })
+      .then(res => {
+        assert.equal(res.status, 404);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('rejects a registration update with the wrong key', (done) => {
+    let server = new ACMEServer(serverConfig);
+    let termsURL = 'https://example.com/terms';
+    server.terms = termsURL;
+
+    let nonce = server.transport.nonces.get();
+    let regKey;
+    let regThumbprint;
+
+    jose.newkey()
+      .then(k => {
+        regKey = k;
+        return regKey.thumbprint();
+      })
+      .then(tpBuffer => {
+        regThumbprint = jose.base64url.encode(tpBuffer);
+        let existing = {
+          id:      regThumbprint,
+          key:     regKey,
+          contact: ['mailto:anonymous@example.com'],
+          type:    function() { return 'reg'; },
+          marshal: function() {
+            return {
+              key:       this.key.toJSON(),
+              status:    this.status,
+              contact:   this.contact,
+              agreement: this.agreement
+            };
+          }
+        };
+        server.db.put(existing);
+
+        let url = `${server.baseURL}reg/${regThumbprint}`;
+        return mockClient.makeJWS(nonce, url, {});
+      })
+      .then(jws => {
+        return promisify(request(server.app).post(`/reg/${regThumbprint}`).send(jws));
+      })
+      .then(res => {
+        assert.equal(res.status, 401);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('rejects a registration update with the wrong terms', (done) => {
+    let server = new ACMEServer(serverConfig);
+    let termsURL = 'https://example.com/terms';
+    server.terms = termsURL;
+
+    let nonce = server.transport.nonces.get();
+    let thumbprint;
+
+    let reg2 = {
+      contact:   ['mailto:someone@example.org'],
+      agreement: termsURL + '-not!'
+    };
+
+    mockClient.key()
+      .then(k => k.thumbprint())
+      .then(tpBuffer => {
+        thumbprint = jose.base64url.encode(tpBuffer);
+        let url = `${server.baseURL}reg/${thumbprint}`;
+        return mockClient.makeJWS(nonce, url, reg2);
+      })
+      .then(jws => {
+        let existing = {
+          id:      thumbprint,
+          key:     mockClient._key,
+          contact: ['mailto:anonymous@example.com'],
+          type:    function() { return 'reg'; },
+          marshal: function() {
+            return {
+              key:       this.key.toJSON(),
+              status:    this.status,
+              contact:   this.contact,
+              agreement: this.agreement
+            };
+          }
+        };
+        server.db.put(existing);
+
+        return promisify(request(server.app).post(`/reg/${existing.id}`).send(jws));
+      })
+      .then(res => {
+        assert.equal(res.status, 400);
         done();
       })
       .catch(done);
@@ -334,10 +481,145 @@ describe('ACME server', () => {
       .catch(done);
   });
 
-  it('rejects a new application from an unregistered key', () => {});
-  it('rejects a new application with an invalid csr', () => {});
-  it('rejects a new application with an invalid notBefore', () => {});
-  it('rejects a new application with an invalid notAfter', () => {});
+  it('rejects a fetch to a bad challenge URL', (done) => {
+    let server = new ACMEServer(serverConfig);
+
+    let thumbprint;
+    let nonce = server.transport.nonces.get();
+    let url = server.baseURL + 'new-app';
+    let app = {
+      'csr':       testCSR,
+      'notBefore': '2016-07-14T23:19:36.197Z',
+      'notAfter':  '2017-07-14T23:19:36.197Z'
+    };
+
+    let testServer = request(server.app);
+    mockClient.key()
+      .then(k => k.thumbprint())
+      .then(tpBuffer => {
+        thumbprint = jose.base64url.encode(tpBuffer);
+        return mockClient.makeJWS(nonce, url, app);
+      })
+      .then(jws => {
+        let existing = {
+          id:      thumbprint,
+          key:     mockClient._key,
+          contact: ['mailto:anonymous@example.com'],
+          type:    function() { return 'reg'; },
+          marshal: function() {
+            return {
+              key:       this.key.toJSON(),
+              status:    this.status,
+              contact:   this.contact,
+              agreement: this.agreement
+            };
+          }
+        };
+        server.db.put(existing);
+
+        return promisify(testServer.post('/new-app').send(jws));
+      })
+      .then(res => {
+        assert.equal(res.status, 201);
+        assert.equal(res.body.requirements[0].type, 'authorization');
+
+        let badChallengePath = path(res.body.requirements[0].url) + '/42';
+        return promisify(testServer.get(badChallengePath));
+      })
+      .then(res => {
+        assert.equal(res.status, 404);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('rejects a new application from an unregistered key', (done) => {
+    let server = new ACMEServer(serverConfig);
+
+    let nonce = server.transport.nonces.get();
+    let url = server.baseURL + 'new-app';
+
+    let testServer = request(server.app);
+    mockClient.makeJWS(nonce, url, {})
+      .then(jws => {
+        return promisify(testServer.post('/new-app').send(jws));
+      })
+      .then(res => {
+        assert.equal(res.status, 401);
+        done();
+      })
+      .catch(done);
+  });
+
+  function newAppError(app) {
+    return (done) => {
+      let server = new ACMEServer(serverConfig);
+
+      let thumbprint;
+      let nonce = server.transport.nonces.get();
+      let url = server.baseURL + 'new-app';
+
+      let testServer = request(server.app);
+      mockClient.key()
+        .then(k => k.thumbprint())
+        .then(tpBuffer => {
+          thumbprint = jose.base64url.encode(tpBuffer);
+          return mockClient.makeJWS(nonce, url, app);
+        })
+        .then(jws => {
+          let existing = {
+            id:      thumbprint,
+            key:     mockClient._key,
+            contact: ['mailto:anonymous@example.com'],
+            type:    function() { return 'reg'; },
+            marshal: function() {
+              return {
+                key:       this.key.toJSON(),
+                status:    this.status,
+                contact:   this.contact,
+                agreement: this.agreement
+              };
+            }
+          };
+          server.db.put(existing);
+
+          return promisify(testServer.post('/new-app').send(jws));
+        })
+        .then(res => {
+          assert.equal(res.status, 400);
+          done();
+        })
+        .catch(done);
+    };
+  }
+
+  it('rejects a new application with an no csr', newAppError({}));
+
+  it('rejects a new application with an invalid csr', newAppError({
+    csr: testCSR.substr(0, testCSR.length - 5)
+  }));
+
+  it('rejects a new application with an invalid notBefore', newAppError({
+    csr:       testCSR,
+    notBefore: 'not-a-date'
+  }));
+
+  it('rejects a new application with notAfter without notBefore', newAppError({
+    csr:      testCSR,
+    notAfter: 'not-a-date'
+  }));
+
+  it('rejects a new application with an invalid notAfter', newAppError({
+    csr:       testCSR,
+    notBefore: '2016-07-14T23:19:36.197Z',
+    notAfter:  'not-a-date'
+  }));
+
+  it('rejects a new application with an excessive lifetime', newAppError({
+    csr:       testCSR,
+    notBefore: '2016-07-14T23:19:36.197Z',
+    notAfter:  '2026-07-14T23:19:36.197Z'
+  }));
 
   it('issues a certificate', function(done) {
     this.timeout(10000);
@@ -432,6 +714,51 @@ describe('ACME server', () => {
         assert.include(res.headers['content-type'], 'application/pkix-cert');
         // XXX(#22): Test that the returned value is a valid certificate
 
+        done();
+      })
+      .catch(done);
+  });
+
+  it('rejects an update to a non-existent authz', (done) => {
+    let server = new ACMEServer(serverConfig);
+    let nonce = server.transport.nonces.get();
+    let url = server.baseURL + 'authz/bogus/0';
+    let testServer = request(server.app);
+    mockClient.makeJWS(nonce, url, {})
+      .then(jws => promisify(testServer.post('/authz/bogus/0').send(jws)))
+      .then(res => {
+        assert.equal(res.status, 404);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('rejects an update to an authz by the wrong key', (done) => {
+    let server = new ACMEServer(serverConfig);
+    let testServer = request(server.app);
+
+    let challPath;
+    jose.newkey()
+      .then(k => k.thumbprint())
+      .then(tpBuffer => {
+        let thumbprint = jose.base64url.encode(tpBuffer);
+        let existing = {
+          id:         thumbprint,
+          thumbprint: thumbprint,
+          challenges: [null],
+          type:       function() { return 'authz'; }
+        };
+        server.db.put(existing);
+
+        challPath = `authz/${thumbprint}/0`;
+
+        let nonce = server.transport.nonces.get();
+        let url = `${server.baseURL}${challPath}`;
+        return mockClient.makeJWS(nonce, url, {});
+      })
+      .then(jws => promisify(testServer.post(`/${challPath}`).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 401);
         done();
       })
       .catch(done);
