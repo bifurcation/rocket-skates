@@ -10,12 +10,12 @@ const forge  = require('node-forge');
 const jose   = require('node-jose');
 const pki    = require('../lib/pki');
 
-let keys = forge.pki.rsa.generateKeyPair(1024);
+let csrKeys = forge.pki.rsa.generateKeyPair(1024);
 
 function generateCSR(options) {
   let csr = forge.pki.createCertificationRequest();
 
-  csr.publicKey = keys.publicKey;
+  csr.publicKey = csrKeys.publicKey;
 
   if (options.subject) {
     csr.setSubject(options.subject);
@@ -25,7 +25,7 @@ function generateCSR(options) {
     csr.setAttributes(options.attributes);
   }
 
-  csr.sign(keys.privateKey);
+  csr.sign(csrKeys.privateKey);
 
   let asn1 = forge.pki.certificationRequestToAsn1(csr);
   let der = forge.asn1.toDer(asn1);
@@ -162,13 +162,58 @@ function errorOn(test) {
   };
 }
 
-describe('PKI utilities module', () => {
-  it('generates a random serial number', () => {
-    let serial = pki.randomSerialNumber();
-    assert.isString(serial);
-    assert.ok(serial.match(/^[a-fA-F0-9]{32}$/));
-  });
+let validCSR = generateCSR(csrs['valid']);
+let notBefore = new Date('2017-01-01T00:00:00');
+let notAfter = new Date('2017-02-01T00:00:00');
+let apps = {
+  'justCSR': {csr: validCSR},
 
+  'withNotBefore': {
+    csr:       validCSR,
+    notBefore: notBefore
+  },
+
+  'withNotAfter': {
+    csr:      validCSR,
+    notAfter: notAfter
+  },
+
+  'withBoth': {
+    csr:       validCSR,
+    notBefore: notBefore,
+    notAfter:  notAfter
+  }
+};
+
+function testIssue(test) {
+  return (done) => {
+    let app = apps[test];
+    localCA.issue(apps[test])
+      .then(cert => {
+        assert.instanceOf(cert, Buffer);
+
+        let hex = cert.toString('hex');
+        let der = forge.util.hexToBytes(hex);
+        let asn1 = forge.asn1.fromDer(der);
+        let parsed = forge.pki.certificateFromAsn1(asn1);
+
+        if (app.notBefore) {
+          assert.isTrue(app.notBefore - parsed.validity.notBefore === 0);
+        }
+
+        if (app.notAfter) {
+          assert.isTrue(app.notAfter - parsed.validity.notAfter === 0);
+        }
+
+        done();
+      })
+      .catch(done);
+  };
+}
+
+let localCA = new pki.CA();
+
+describe('PKI utilities module', () => {
   it('parses a valid CSR', () => {
     let csr = generateCSR(csrs.valid);
     let parsed = pki.parseCSR(csr);
@@ -196,4 +241,29 @@ describe('PKI utilities module', () => {
   it('rejects a CSR with a dNSName SAN that is not a DNS name', errorOn('nonDNSName'));
   it('rejects a CSR with no names at all',                      errorOn('noNames'));
   it('rejects a CSR with DN components other than CN',          errorOn('noCN'));
+
+  it('generates and caches keys', function(done) {
+    this.timeout(10000);
+
+    let firstKeys;
+    localCA.generate()
+      .then(keys => {
+        assert.isObject(keys);
+        assert.property(keys, 'privateKey');
+        assert.property(keys, 'publicKey');
+
+        firstKeys = keys;
+        return localCA.keys();
+      })
+      .then(keys => {
+        assert.deepEqual(keys, firstKeys);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('issues a certificate with only a CSR', testIssue('justCSR'));
+  it('issues a certificate with notBefore',  testIssue('withNotBefore'));
+  it('issues a certificate with notAfter',   testIssue('withNotAfter'));
+  it('issues a certificate with both',       testIssue('withBoth'));
 });

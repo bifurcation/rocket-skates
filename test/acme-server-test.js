@@ -13,12 +13,15 @@ const promisify     = require('./tools/promisify');
 const AutoChallenge = require('./tools/auto-challenge');
 //const ZeroChallenge = require('./tools/zero-challenge');
 const jose          = require('../lib/jose');
+const pki           = require('../lib/pki');
 const ACMEServer    = require('../lib/acme-server');
 
+let localCA = new pki.CA();
 let serverConfig = {
   host:               '127.0.0.1',
   authzExpirySeconds: 30 * 24 * 3600,
-  challengeTypes:     [AutoChallenge]
+  challengeTypes:     [AutoChallenge],
+  CA:                 localCA
 };
 let mockClient = new MockClient();
 
@@ -61,6 +64,12 @@ function registerKey(key, server) {
 }
 
 describe('ACME server', () => {
+  before(done => {
+    localCA.generate()
+      .then(() => { done(); })
+      .catch(done);
+  });
+
   it('refuses to create a server with no challenges', (done) => {
     try {
       new ACMEServer({challengeTypes: []});
