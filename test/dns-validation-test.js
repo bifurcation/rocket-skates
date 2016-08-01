@@ -53,8 +53,9 @@ describe('dns-01 validation', () => {
                                         .digest();
     let keyAuthorizationHash = jose.base64url.encode(keyAuthorizationHashBuf);
 
+    let validation;
     let p = new Promise(resolve => {
-      DNS01Validation.respond('example.com', challenge, response, resolve);
+      validation = DNS01Validation.respond('example.com', challenge, response, resolve);
     });
 
     let authName = '_acme-challenge.example.com';
@@ -97,8 +98,56 @@ describe('dns-01 validation', () => {
       .timeout(1000)
       .then(text => {
         assert.equal(text, keyAuthorizationHash);
-        done();
+        return validation;
       })
+      .then(() => { done(); })
+      .catch(done);
+  });
+
+  it('rejects an invalid request', (done) => {
+    let challenge = {
+      url:   'http://localhost:8081/chall/asdf',
+      token: '12345'
+    };
+    let response = {
+      keyAuthorization: '12345.asdf'
+    };
+
+    let validation;
+    let p = new Promise(resolve => {
+      validation = DNS01Validation.respond('example.com', challenge, response, resolve);
+    });
+
+    let req = dns.Request({
+      question: dns.Question({name: 'anonymous.invalid', type: 'TXT'}),
+      server:   {
+        address: DNS01Validation.resolver,
+        port:    DNS01Validation.port
+      },
+      timeout: 2000
+    });
+
+    p.then(() => Promise.delay(100))
+      .then(() => {
+        return new Promise((resolve, reject) => {
+          req.on('timeout', () => { reject('timeout'); });
+          req.on('message', (err, answer) => {
+            if (err) {
+              reject(err);
+            }
+
+            resolve(answer);
+          });
+
+          req.send();
+        });
+      })
+      .timeout(1000)
+      .then(answer => {
+        assert.notEqual(answer.header.rcode, dns.consts.NAME_TO_RCODE.NOERROR);
+        return validation;
+      })
+      .then(() => { done(); })
       .catch(done);
   });
 });

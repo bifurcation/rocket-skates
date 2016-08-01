@@ -265,7 +265,7 @@ describe('PKI utilities module', () => {
   it('fails when key generation fails', (done) => {
     let gen = forge.rsa.generateKeyPair;
     forge.rsa.generateKeyPair = (opts, callback) => {
-      callback('error');
+      callback(new Error('error'));
     };
 
     function cleanup(err) {
