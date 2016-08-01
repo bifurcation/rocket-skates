@@ -656,11 +656,11 @@ describe('ACME client', () => {
       identifier: {type: 'dns', value: 'example.com'},
       status:     'pending',
       challenges: [
-        {type: 'auto', url:  'non-empty'},
-        {type: 'auto', url:  'non-empty'},
-        {type: 'unsupported', url:  'non-empty'}
+        {type: 'auto', url: 'non-empty'},
+        {type: 'auto', url: 'non-empty'},
+        {type: 'unsupported', url: 'non-empty'}
       ],
       combinations: [[0, 2], [1, 2]]
-    }, 'Combination value out of bounds');
+    }, 'No supported combinations');
   });
 });

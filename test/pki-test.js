@@ -263,19 +263,20 @@ describe('PKI utilities module', () => {
   });
 
   it('fails when key generation fails', (done) => {
-    let gen = forge.rsa.generateKeyPair();
+    let gen = forge.rsa.generateKeyPair;
     forge.rsa.generateKeyPair = (opts, callback) => {
       callback('error');
     };
 
+    function cleanup(err) {
+      forge.rsa.generateKeyPair = gen;
+      done(err);
+    }
+
     let ca = new pki.CA();
     ca.keys()
-      .then(() => { assert.isTrue(false); })
-      .catch(err => {
-        assert.equal(err, 'error');
-        forge.rsa.generateKeyPair = gen;
-        done();
-      });
+      .then(() => { cleanup(new Error('Generation should have failed')); })
+      .catch(() => { cleanup(); });
   });
 
   it('issues a certificate with only a CSR', testIssue('justCSR'));
