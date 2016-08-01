@@ -64,7 +64,8 @@ function registerKey(key, server) {
 }
 
 describe('ACME server', () => {
-  before(done => {
+  before(function(done) {
+    this.timeout(10000);
     localCA.generate()
       .then(() => { done(); })
       .catch(done);
@@ -435,6 +436,40 @@ describe('ACME server', () => {
       .catch(done);
   });
 
+  it('expires an authorization', (done) => {
+    let server = new ACMEServer(serverConfig);
+    let app = {'csr': testCSR};
+
+    let testServer = request(server.app);
+    mockClient.key()
+      .then(k => registerKey(k, server))
+      .then(() => {
+        let nonce = server.transport.nonces.get();
+        let url = server.baseURL + 'new-app';
+        return mockClient.makeJWS(nonce, url, app);
+      })
+      .then(jws => promisify(testServer.post('/new-app').send(jws)))
+      .then(res => {
+        assert.equal(res.status, 201);
+
+        let authzURL = res.body.requirements[0].url;
+        let authzPath = path(authzURL);
+        let authzID = authzPath.replace(/^.*\//, '');
+        let authz = server.db.get('authz', authzID);
+
+        authz.expires = new Date('2015-01-01T00:00:00Z');
+        server.db.put(authz);
+
+        return testServer.get(authzPath);
+      })
+      .then(res => {
+        assert.equal(res.status, 200);
+        assert.equal(res.body.status, 'invalid');
+        done();
+      })
+      .catch(done);
+  });
+
   it('rejects a fetch to a bad challenge URL', (done) => {
     let server = new ACMEServer(serverConfig);
     let app = {
@@ -609,6 +644,95 @@ describe('ACME server', () => {
       .catch(done);
   });
 
+  it('re-uses authorizations for the same client', (done) => {
+    let server = new ACMEServer(serverConfig);
+    let app = {
+      'csr':       testCSR,
+      'notBefore': '2016-07-14T23:19:36.197Z',
+      'notAfter':  '2017-07-14T23:19:36.197Z'
+    };
+
+    let authzURL;
+    let testServer = request(server.app);
+    mockClient.key()
+      .then(k => registerKey(k, server))
+      .then(() => {
+        let nonce = server.transport.nonces.get();
+        let url = server.baseURL + 'new-app';
+        return mockClient.makeJWS(nonce, url, app);
+      })
+      .then(jws => promisify(testServer.post('/new-app').send(jws)))
+      .then(res => {
+        assert.equal(res.status, 201);
+        authzURL = res.body.requirements[0].url;
+
+        let nonce = server.transport.nonces.get();
+        let url = server.baseURL + 'new-app';
+        return mockClient.makeJWS(nonce, url, app);
+      })
+      .then(jws => promisify(testServer.post('/new-app').send(jws)))
+      .then(res => {
+        assert.equal(res.status, 201);
+        assert.equal(res.body.requirements[0].url, authzURL);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('ignores applications from a different registration', (done) => {
+    let server = new ACMEServer(serverConfig);
+    let app = {
+      'csr':       testCSR,
+      'notBefore': '2016-07-14T23:19:36.197Z',
+      'notAfter':  '2017-07-14T23:19:36.197Z'
+    };
+
+    let bogusApp = {
+      id:         'not-your-thumbprint',
+      thumbprint: 'not-your-thumbprint',
+      type:       function() { return 'app'; },
+      touched:    false,
+
+      get challenges() {
+        this.touched = true;
+        return [];
+      }
+    };
+    server.db.put(bogusApp);
+
+    let appPath;
+    let testServer = request(server.app);
+    mockClient.key()
+      .then(k => registerKey(k, server))
+      .then(() => {
+        let nonce = server.transport.nonces.get();
+        let url = server.baseURL + 'new-app';
+        return mockClient.makeJWS(nonce, url, app);
+      })
+      .then(jws => promisify(testServer.post('/new-app').send(jws)))
+      .then(res => {
+        assert.equal(res.status, 201);
+
+        appPath = path(res.headers.location);
+        let authzPath = path(res.body.requirements[0].url);
+        return testServer.get(authzPath);
+      })
+      .then(res => {
+        assert.equal(res.status, 200);
+
+        let nonce = server.transport.nonces.get();
+        let url = res.body.challenges[0].url;
+        return mockClient.makeJWS(nonce, url, app)
+          .then(jws => promisify(testServer.post(path(url)).send(jws)));
+      })
+      .then(() => promisify(testServer.get(appPath)))
+      .then(() => {
+        assert.isFalse(bogusApp.touched);
+        done();
+      })
+      .catch(done);
+  });
+
   it('rejects an update to a non-existent authz', (done) => {
     let server = new ACMEServer(serverConfig);
     let nonce = server.transport.nonces.get();
@@ -653,6 +777,4 @@ describe('ACME server', () => {
       })
       .catch(done);
   });
-
-  it('auto-issues if all challenges are valid', () => {});
 });
