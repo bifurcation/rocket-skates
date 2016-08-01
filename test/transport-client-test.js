@@ -58,8 +58,8 @@ describe('transport-level client', () => {
       .catch(done);
   });
 
-  it('polls until completion or timeout', (done) => {
-    let test = (body => body.foo);
+  it('polls until completion', (done) => {
+    let test = (res => res.body.foo);
     nock('http://example.com')
       .get('/foo').reply(200, {})
       .get('/foo').reply(200, {'foo': 'bar'});
@@ -67,15 +67,20 @@ describe('transport-level client', () => {
     TransportClient.poll('http://example.com/foo', test)
       .then(body => {
         assert.ok(test(body));
+        done();
       })
-      .catch(err => assert.ok(false, err.message))
-      .then(() => {
-        nock('http://example.com')
-          .get('/foo').reply(200, {})
-          .get('/foo').reply(200, {})
-          .get('/foo').reply(200, {'foo': 'bar'});
-        return TransportClient.poll('http://example.com/foo', test, 2, 10);
-      })
+      .catch(done);
+  });
+
+  it('times out after a specified number of polls', (done) => {
+    let test = (res => res.body.foo);
+    nock('http://example.com')
+      .get('/foo').reply(200, {})
+      .get('/foo').reply(200, {})
+      .get('/foo').reply(200, {})
+      .get('/foo').reply(200, {'foo': 'bar'});
+
+    TransportClient.poll('http://example.com/foo', test, 2, 10)
       .then(() => { done(new Error('should have failed')); })
       .catch(() => { done(); });
   });
