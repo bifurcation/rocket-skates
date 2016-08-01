@@ -9,6 +9,7 @@ const assert             = require('chai').assert;
 const tls                = require('tls');
 const Promise            = require('bluebird');
 const crypto             = require('crypto');
+const pem                = require('pem');
 const jose               = require('../lib/jose');
 const TLSSNI02Validation = require('../lib/validations/tls-sni-validation');
 
@@ -69,8 +70,9 @@ describe('tls-sni-02 validation', () => {
       rejectUnauthorized: false
     };
 
+    let validation;
     let p = new Promise(resolve => {
-      TLSSNI02Validation.respond('example.com', challenge, response, resolve);
+      validation = TLSSNI02Validation.respond('example.com', challenge, response, resolve);
     });
 
     p.then(() => Promise.delay(100))
@@ -97,5 +99,29 @@ describe('tls-sni-02 validation', () => {
       })
       .then(done)
       .catch(done);
+  });
+
+  it('fails if it is unable to create a certificate', (done) => {
+    let challenge = {
+      url:   'http://localhost:8081/chall/asdf',
+      token: '12345'
+    };
+    let response = {
+      keyAuthorization: '12345.asdf'
+    };
+
+    let create = pem.createCertificate;
+    pem.createCertificate = (opts, callback) => {
+      callback(new Error('error'));
+    };
+
+    function cleanup(err) {
+      pem.createCertificate = create;
+      done(err);
+    }
+
+    TLSSNI02Validation.respond('example.com', challenge, response)
+      .then(() => { cleanup(new Error('tls-sni-02 challenge should have failed')); })
+      .catch(() => { cleanup(); });
   });
 });
