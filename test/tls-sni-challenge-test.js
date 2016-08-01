@@ -14,9 +14,12 @@ const TLSSNI02Challenge = require('../lib/challenges/tls-sni-challenge.js');
 function newServer(names) {
   let options = {
     commonName: 'tls-sni.acme.invalid',
-    altNames:   names,
     selfSigned: true
   };
+
+  if (names) {
+    options.altNames = names;
+  }
 
   return new Promise((resolve, reject) => {
     pem.createCertificate(options, (err, obj) => {
@@ -107,7 +110,7 @@ describe('tls-sni-02 challenge', () => {
       .catch(done);
   });
 
-  it('rejects a bad validation response', done => {
+  it('rejects a bad validation response (missing SAN)', done => {
     let challenge = new TLSSNI02Challenge(name, thumbprint);
     assert.equal(challenge.status, 'pending');
 
@@ -118,6 +121,36 @@ describe('tls-sni-02 challenge', () => {
       keyAuthorization: challenge._keyAuthorization
     };
     newServer([challenge._sanA]) // no SAN B
+      .then(srv => {
+        server = srv;
+        server.listen(port);
+      })
+      .then(() => { return challenge.update(response); })
+      .then(() => {
+        assert.isTrue(server.gotRequest);
+        assert.equal(challenge.status, 'invalid');
+      })
+      .catch(err => { error = err; })
+      .then(() => {
+        if (server) {
+          server.close(() => { done(error); });
+        } else {
+          done(error);
+        }
+      });
+  });
+
+  it('rejects a bad validation response (no SANs)', done => {
+    let challenge = new TLSSNI02Challenge(name, thumbprint);
+    assert.equal(challenge.status, 'pending');
+
+    let error;
+    let server;
+    let response = {
+      type:             TLSSNI02Challenge.type,
+      keyAuthorization: challenge._keyAuthorization
+    };
+    newServer() // no SAN B
       .then(srv => {
         server = srv;
         server.listen(port);

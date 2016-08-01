@@ -18,7 +18,6 @@ DNS01Challenge.resolver = '127.0.0.1';
 DNS01Challenge.port = port;
 
 let record;
-let sendError = false;
 let gotRequest = false;
 let server = dns.createServer();
 
@@ -27,8 +26,7 @@ server.on('request', (request, response) => {
 
   if (request.question.length === 0) {
     response.header.rcode = dns.consts.NAME_TO_RCODE.FORMERR;
-  } else if (sendError ||
-      (request.question[0].class !== dns.consts.NAME_TO_QCLASS.IN) ||
+  } else if ((request.question[0].class !== dns.consts.NAME_TO_QCLASS.IN) ||
       (request.question[0].type !== dns.consts.NAME_TO_QTYPE.TXT) ||
       (request.question[0].name !== authName)) {
     response.header.rcode = dns.consts.NAME_TO_RCODE.NOTFOUND;
@@ -128,17 +126,12 @@ describe('dns-01 challenge', () => {
       .catch(done);
   });
 
-  it('invalidates on a server error', done => {
+  it('invalidates on timeout', done => {
+    let originalResolver = DNS01Challenge.resolver;
+    DNS01Challenge.resolver = 'auto';
+
     let challenge = new DNS01Challenge(name, thumbprint);
     assert.equal(challenge.status, 'pending');
-
-    sendError = true;
-    record = dns.TXT({
-      name: authName,
-      data: [challenge._keyAuthorizationHash + '-not'],
-      ttl:  600
-    });
-    gotRequest = false;
 
     let response = {
       type:             DNS01Challenge.type,
@@ -146,12 +139,15 @@ describe('dns-01 challenge', () => {
     };
     challenge.update(response)
       .then(() => {
-        sendError = false;
         assert.isTrue(gotRequest);
         assert.equal(challenge.status, 'invalid');
+        DNS01Challenge.resolver = originalResolver;
         done();
       })
-      .catch(done);
+      .catch(err => {
+        DNS01Challenge.resolver = originalResolver;
+        done(err);
+      });
   });
 
   it('serializes properly', done => {
