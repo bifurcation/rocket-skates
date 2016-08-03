@@ -3,8 +3,8 @@ rocket-skates
 
 Reference implementation of [ACME](https://ietf-wg-acme.github.io/acme/).
 
-[![Build Status](https://travis-ci.org/hildjj/node-acme.svg?branch=master)](https://travis-ci.org/hildjj/node-acme)
-[![Coverage Status](https://coveralls.io/repos/hildjj/node-acme/badge.svg?branch=master&service=github)](https://coveralls.io/github/hildjj/node-acme?branch=master)
+[![Build Status](https://travis-ci.org/bifurcation/rocket-skates.svg?branch=master)](https://travis-ci.org/bifurcation/rocket-skates)
+[![Coverage Status](https://coveralls.io/repos/bifurcation/rocket-skates/badge.svg?branch=master&service=github)](https://coveralls.io/github/bifurcation/rocket-skates?branch=master)
 
 ![Wile E. Coyote on rocket skates](https://ipv.sx/rocket-skates/rocket-skates.png)
 
@@ -19,9 +19,30 @@ working on its development than something to be used in production.
   implementation
 * Provide a testing / conformance tool for people developing ACME
   implementations
-* 100% test and documentation coverage
+* 100% specification coverage
+* 100% test coverage
+* 100% documentation coverage
 * Non-goal: Having a clean command line interface or API
 
+### Coverage
+
+Test coverage can be measured with `npm run coverage`, and should be tracked by coveralls.  There is currently no automated tracking of documentation coverage.
+
+Spec coverage should be reflected in
+[SPEC\_COVERAGE.md](https://github.com/bifurcation/rocket-skates/tree/master/SPEC_COVERAGE.md).
+This file is built from comments of the following form:
+
+```
+  // {{request-uri-integrity}}
+  _checkURL(req, url) {
+    // implement the corresponding section of the spec
+  }
+```
+
+The tag inside the curly braces is a reference to a section of the
+specification, using the de-facto standard mapping of section headings to
+anchors in Markdown.  Of course, these are only claims of coverage, so there
+may be some inaccuracy.
 
 ## Architecture
 

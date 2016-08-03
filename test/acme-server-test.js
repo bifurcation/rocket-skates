@@ -11,10 +11,9 @@ const urlParse      = require('url');
 const MockClient    = require('./tools/mock-client');
 const promisify     = require('./tools/promisify');
 const AutoChallenge = require('./tools/auto-challenge');
-//const ZeroChallenge = require('./tools/zero-challenge');
 const jose          = require('../lib/jose');
-const pki           = require('../lib/pki');
-const ACMEServer    = require('../lib/acme-server');
+const pki           = require('../lib/server/pki');
+const ACMEServer    = require('../lib/server/acme-server');
 
 let localCA = new pki.CA();
 let serverConfig = {

@@ -7,7 +7,7 @@
 
 const assert          = require('chai').assert;
 const nock            = require('nock');
-const HTTP01Challenge = require('../lib/challenges/http-challenge.js');
+const HTTP01Challenge = require('../lib/server/http-challenge.js');
 
 const thumbprint = 'p3wl28h-9g3g1r6eIGORS5usGW79TUjL6fo_T5xRhAQ';
 const name = 'example.com';

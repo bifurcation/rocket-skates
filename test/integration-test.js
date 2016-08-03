@@ -7,14 +7,14 @@
 
 const assert             = require('chai').assert;
 const jose               = require('../lib/jose');
-const TransportClient    = require('../lib/transport-client');
-const TransportServer    = require('../lib/transport-server');
-const HTTP01Challenge    = require('../lib/challenges/http-challenge');
-const HTTP01Validation   = require('../lib/validations/http-validation');
-const DNS01Challenge     = require('../lib/challenges/dns-challenge');
-const DNS01Validation    = require('../lib/validations/dns-validation');
-const TLSSNI02Challenge  = require('../lib/challenges/tls-sni-challenge');
-const TLSSNI02Validation = require('../lib/validations/tls-sni-validation');
+const TransportClient    = require('../lib/client/transport-client');
+const TransportServer    = require('../lib/server/transport-server');
+const HTTP01Challenge    = require('../lib/server/http-challenge');
+const HTTP01Validation   = require('../lib/client/http-validation');
+const DNS01Challenge     = require('../lib/server/dns-challenge');
+const DNS01Validation    = require('../lib/client/dns-validation');
+const TLSSNI02Challenge  = require('../lib/server/tls-sni-challenge');
+const TLSSNI02Validation = require('../lib/client/tls-sni-validation');
 
 const PORT = 4430;
 

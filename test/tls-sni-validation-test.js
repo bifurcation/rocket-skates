@@ -11,7 +11,7 @@ const Promise            = require('bluebird');
 const crypto             = require('crypto');
 const pem                = require('pem');
 const jose               = require('../lib/jose');
-const TLSSNI02Validation = require('../lib/validations/tls-sni-validation');
+const TLSSNI02Validation = require('../lib/client/tls-sni-validation');
 
 TLSSNI02Validation.port = 4430;
 
@@ -70,9 +70,8 @@ describe('tls-sni-02 validation', () => {
       rejectUnauthorized: false
     };
 
-    let validation;
     let p = new Promise(resolve => {
-      validation = TLSSNI02Validation.respond('example.com', challenge, response, resolve);
+      TLSSNI02Validation.respond('example.com', challenge, response, resolve);
     });
 
     p.then(() => Promise.delay(100))
