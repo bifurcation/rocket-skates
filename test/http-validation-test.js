@@ -16,7 +16,7 @@ HTTP01Validation.port = 8080;
 describe('http-01 validation', () => {
   it('creates a correct response', (done) => {
     let challenge = {
-      url:   'http://localhost:8081/chall/asdf',
+      url:   'https://localhost:8081/chall/asdf',
       token: '12345'
     };
     let key;
@@ -41,7 +41,7 @@ describe('http-01 validation', () => {
 
   it('fulfills an http-01 challenge', (done) => {
     let challenge = {
-      url:   'http://localhost:8081/chall/asdf',
+      url:   'https://localhost:8081/chall/asdf',
       token: '12345'
     };
     let response = {

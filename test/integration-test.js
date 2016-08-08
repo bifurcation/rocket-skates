@@ -6,6 +6,8 @@
 'use strict';
 
 const assert             = require('chai').assert;
+const https              = require('https');
+const serverCert         = require('./tools/server-certificate');
 const jose               = require('../lib/jose');
 const TransportClient    = require('../lib/client/transport-client');
 const TransportServer    = require('../lib/server/transport-server');
@@ -16,29 +18,45 @@ const DNS01Validation    = require('../lib/client/dns-validation');
 const TLSSNI02Challenge  = require('../lib/server/tls-sni-challenge');
 const TLSSNI02Validation = require('../lib/client/tls-sni-validation');
 
-const PORT = 4430;
+const port = 4430;
 
 describe('transport-level client/server integration', () => {
-  it('performs a POST request with preflight', (done) => {
-    let server = new TransportServer();
+  let serverOptions;
+  let transport;
+  let server;
 
-    let url = `http://localhost:${PORT}/foo`;
+  before(done => {
+    serverCert()
+      .then(options => {
+        serverOptions = options;
+        done();
+      });
+  });
+
+  beforeEach(done => {
+    transport = new TransportServer();
+    server = https.createServer(serverOptions, transport.app);
+    server.listen(port, done);
+  });
+
+  afterEach(done => {
+    server.close(done);
+  });
+
+  it('performs a POST request with preflight', (done) => {
+    let url = `https://localhost:${port}/foo`;
     let gotPOST = false;
     let query = {'foo': 'bar'};
     let result = {'bar': 2};
 
-    server.app.locals.port = PORT;
-    server.app.post('/foo', (req, res) => {
+    transport.app.locals.port = port;
+    transport.app.post('/foo', (req, res) => {
       gotPOST = true;
       assert.deepEqual(req.payload, query);
       res.json(result);
     });
 
-    let httpServer;
-    let p = new Promise(res => {
-      httpServer = server.app.listen(PORT, () => res());
-    });
-    p.then(() => { return jose.newkey(); })
+    jose.newkey()
       .then(k => {
         let client = new TransportClient({accountKey: k});
         return client.post(url, query);
@@ -46,9 +64,6 @@ describe('transport-level client/server integration', () => {
       .then(response => {
         assert.isTrue(gotPOST);
         assert.deepEqual(response.body, result);
-      })
-      .then(() => {
-        httpServer.close();
         done();
       })
       .catch(done);

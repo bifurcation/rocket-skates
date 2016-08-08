@@ -7,22 +7,48 @@
 
 const assert          = require('chai').assert;
 const request         = require('supertest');
+const https           = require('https');
 const MockClient      = require('./tools/mock-client');
 const promisify       = require('./tools/promisify');
+const serverCert      = require('./tools/server-certificate');
 const TransportServer = require('../lib/server/transport-server');
 
-let nonceRE = /^[a-zA-Z0-9-_]+$/;
-let mockClient = new MockClient();
+const port = 4300;
+
+const nonceRE = /^[a-zA-Z0-9-_]+$/;
+const mockClient = new MockClient();
 
 describe('transport-level server', () => {
+  let serverOptions;
+  let transport;
+  let server;
+
+  before(done => {
+    serverCert()
+      .then(options => {
+        serverOptions = options;
+        done();
+      })
+      .catch(done);
+  });
+
+  beforeEach(done => {
+    transport = new TransportServer();
+    server = https.createServer(serverOptions, transport.app);
+    server.listen(port, done);
+  });
+
+  afterEach(done => {
+    server.close(done);
+  });
+
   it('responds to a valid POST request', (done) => {
-    let server = new TransportServer();
-    let nonce = server.nonces.get();
+    let nonce = transport.nonces.get();
     let payload = {'fnord': 42};
 
     let gotPOST = false;
     let result = {'bar': 2};
-    server.app.post('/foo', (req, res) => {
+    transport.app.post('/foo', (req, res) => {
       gotPOST = true;
 
       try {
@@ -34,8 +60,8 @@ describe('transport-level server', () => {
       res.json(result);
     });
 
-    mockClient.makeJWS(nonce, 'http://127.0.0.1/foo', payload)
-      .then(jws => promisify(request(server.app).post('/foo').send(jws)))
+    mockClient.makeJWS(nonce, 'https://127.0.0.1/foo', payload)
+      .then(jws => promisify(request(server).post('/foo').send(jws)))
       .then(res => {
         assert.equal(res.status, 200);
 
@@ -49,12 +75,19 @@ describe('transport-level server', () => {
       .catch(done);
   });
 
-  it('rejects a POST with a bad nonce', (done) => {
-    let server = new TransportServer();
+  it('refuses a non-HTTPS request', (done) => {
+    transport = new TransportServer();
+    let httpServer = transport.app.listen(8080, () => {
+      request(httpServer)
+        .get('/')
+        .expect(500, done);
+    });
+  });
 
-    mockClient.makeJWS('asdf', 'http://127.0.0.1/foo?bar=baz', {})
+  it('rejects a POST with a bad nonce', (done) => {
+    mockClient.makeJWS('asdf', 'https://127.0.0.1/foo?bar=baz', {})
       .then(jws => {
-        request(server.app)
+        request(server)
           .post('/foo?bar=baz')
           .send(jws)
           .expect(400, done);
@@ -62,12 +95,11 @@ describe('transport-level server', () => {
   });
 
   it('rejects a POST with a bad url', (done) => {
-    let server = new TransportServer();
-    let nonce = server.nonces.get();
+    let nonce = transport.nonces.get();
 
-    mockClient.makeJWS(nonce, 'http://example.com/stuff', {})
+    mockClient.makeJWS(nonce, 'https://example.com/stuff', {})
       .then(jws => {
-        request(server.app)
+        request(server)
           .post('/foo?bar=baz')
           .send(jws)
           .expect(400, done);
@@ -75,16 +107,14 @@ describe('transport-level server', () => {
   });
 
   it('provides a nonce for GET requests', (done) => {
-    let server = new TransportServer();
-    request(server.app)
+    request(server)
       .get('/')
       .expect(404)
       .expect('replay-nonce', nonceRE, done);
   });
 
   it('provides a nonce for HEAD requests', (done) => {
-    let server = new TransportServer();
-    request(server.app)
+    request(server)
       .head('/')
       .expect(404)
       .expect('replay-nonce', nonceRE)

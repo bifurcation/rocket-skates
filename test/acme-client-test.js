@@ -14,15 +14,15 @@ const ACMEClient     = require('../lib/client/acme-client');
 
 describe('ACME client', () => {
   let accountKey;
-  let directoryURL = 'http://example.com/directory';
+  let directoryURL = 'https://example.com/directory';
   let directory = {
     'meta': {
-      'terms-of-service': 'http://example.com/terms'
+      'terms-of-service': 'https://example.com/terms'
     },
-    'new-reg': 'http://example.com/new-reg',
-    'new-app': 'http://example.com/new-app'
+    'new-reg': 'https://example.com/new-reg',
+    'new-app': 'https://example.com/new-app'
   };
-  let server = nock('http://example.com');
+  let server = nock('https://example.com');
 
   let testCSR = 'non-empty';
   let testNotBefore = new Date('2017-01-01T00:00:00Z');
@@ -100,7 +100,7 @@ describe('ACME client', () => {
       key:     accountKey.toJSON(),
       contact: contact
     };
-    let regHeaders = {location: 'http://example.com/reg/asdf'};
+    let regHeaders = {location: 'https://example.com/reg/asdf'};
 
     let gotNewReg = false;
     server.get('/directory').reply(200, directory)
@@ -131,15 +131,15 @@ describe('ACME client', () => {
   });
 
   it('agrees to terms', (done) => {
-    let termsURL = 'http://example.com/terms';
+    let termsURL = 'https://example.com/terms';
     let contact = ['mailto:anonymous@example.com'];
     let regResponse = {
       key:     accountKey.toJSON(),
       contact: contact
     };
     let regHeaders = {
-      location:       'http://example.com/reg/asdf',
-      link:           '<http://example.com/terms>; rel="terms-of-service"',
+      location:       'https://example.com/reg/asdf',
+      link:           '<https://example.com/terms>; rel="terms-of-service"',
       'replay-nonce': 'foo'
     };
 
@@ -261,8 +261,8 @@ describe('ACME client', () => {
   it('fails if there is an incorrect agreement', (done) => {
     let regResponse = {contact: ['mailto:someone@example.com']};
     let regHeaders = {
-      location:       'http://example.com/reg/asdf',
-      link:           '<http://example.com/terms>; rel="terms-of-service"',
+      location:       'https://example.com/reg/asdf',
+      link:           '<https://example.com/terms>; rel="terms-of-service"',
       'replay-nonce': 'foo'
     };
     server.get('/directory').reply(200, directory)
@@ -290,8 +290,8 @@ describe('ACME client', () => {
   it('fails if the user declines terms', (done) => {
     let regResponse = {contact: ['mailto:someone@example.com']};
     let regHeaders = {
-      location:       'http://example.com/reg/asdf',
-      link:           '<http://example.com/terms>; rel="terms-of-service"',
+      location:       'https://example.com/reg/asdf',
+      link:           '<https://example.com/terms>; rel="terms-of-service"',
       'replay-nonce': 'foo'
     };
     server.get('/directory').reply(200, directory)
@@ -324,16 +324,16 @@ describe('ACME client', () => {
       requirements: [{
         type:   'authorization',
         status: 'pending',
-        url:    'http://example.com/authz/asdf'
+        url:    'https://example.com/authz/asdf'
       }]
     };
     let newAppHeaders = {
-      location:       'http://example.com/app/asdf',
+      location:       'https://example.com/app/asdf',
       'replay-nonce': 'foo'
     };
     let autoChallenge = {
       type:  'auto',
-      url:   'http://example.com/authz/asdf/0',
+      url:   'https://example.com/authz/asdf/0',
       token: '12345'
     };
     let authz = {
@@ -347,7 +347,7 @@ describe('ACME client', () => {
     let completed = {};
     Object.assign(completed, app);
     completed.status = 'valid';
-    completed.certificate = 'http://example.com/cert/asdf';
+    completed.certificate = 'https://example.com/cert/asdf';
 
     let gotNewApp = false;
     let gotAuthzFetch = false;
@@ -415,13 +415,13 @@ describe('ACME client', () => {
       requirements: [{
         type:   'authorization',
         status: 'valid',
-        url:    'http://example.com/authz/asdf'
+        url:    'https://example.com/authz/asdf'
       }],
 
-      certificate: 'http://example.com/cert/asdf'
+      certificate: 'https://example.com/cert/asdf'
     };
     let newAppHeaders = {
-      location:       'http://example.com/app/asdf',
+      location:       'https://example.com/app/asdf',
       'replay-nonce': 'foo'
     };
 
@@ -502,7 +502,7 @@ describe('ACME client', () => {
 
   function testInvalidApp(done, app, msg) {
     let newAppHeaders = {
-      location: 'http://example.com/app/asdf'
+      location: 'https://example.com/app/asdf'
     };
 
     server.get('/directory').reply(200, directory)
@@ -573,11 +573,11 @@ describe('ACME client', () => {
       requirements: [{
         type:   'authorization',
         status: 'pending',
-        url:    'http://example.com/authz/asdf'
+        url:    'https://example.com/authz/asdf'
       }]
     };
     let newAppHeaders = {
-      location: 'http://example.com/app/asdf'
+      location: 'https://example.com/app/asdf'
     };
 
     server.get('/directory').reply(200, directory)

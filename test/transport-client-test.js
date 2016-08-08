@@ -5,10 +5,14 @@
 
 'use strict';
 
-const assert          = require('chai').assert;
+const chai            = require('chai');
+const assert          = chai.assert;
+const chaiAsPromised  = require('chai-as-promised');
 const nock            = require('nock');
 const jose            = require('../lib/jose');
 const TransportClient = require('../lib/client/transport-client');
+
+chai.use(chaiAsPromised);
 
 describe('transport-level client', () => {
   afterEach(() => {
@@ -24,16 +28,28 @@ describe('transport-level client', () => {
     }
   });
 
+  it('rejects requests to non-HTTPS URLs', () => {
+    assert.isRejected(TransportClient.get('http://example.com'));
+    assert.isRejected(TransportClient.poll('http://example.com'));
+
+    assert.isRejected(jose.newkey()
+      .then(k => {
+        let client = new TransportClient({accountKey: k});
+        client.nonces.push('asdf');
+        return client.post('http://example.com/foo', {'foo': 'bar'});
+      }));
+  });
+
   it('performs a JSON GET request', (done) => {
     let content = {'result': true};
     let headers = {
       'location': 'https://example.com/asdf',
       'link':     '<https://example.com/terms>; rel="terms-of-service"'
     };
-    nock('http://example.com')
+    nock('https://example.com')
       .get('/foo').reply(200, content, headers);
 
-    TransportClient.get('http://example.com/foo')
+    TransportClient.get('https://example.com/foo')
       .then(response => {
         assert.equal(response.location, headers.location);
         assert.property(response.links, 'terms-of-service');
@@ -46,10 +62,10 @@ describe('transport-level client', () => {
 
   it('performs a binary GET request', (done) => {
     let content = 'asdf';
-    nock('http://example.com')
+    nock('https://example.com')
       .get('/foo').reply(200, content);
 
-    TransportClient.get('http://example.com/foo', true)
+    TransportClient.get('https://example.com/foo', true)
       .then(response => {
         assert.isTrue(response.body instanceof Buffer);
         assert.equal(response.body.toString(), content);
@@ -60,11 +76,11 @@ describe('transport-level client', () => {
 
   it('polls until completion', (done) => {
     let test = (res => res.body.foo);
-    nock('http://example.com')
+    nock('https://example.com')
       .get('/foo').reply(200, {})
       .get('/foo').reply(200, {'foo': 'bar'});
 
-    TransportClient.poll('http://example.com/foo', test)
+    TransportClient.poll('https://example.com/foo', test)
       .then(body => {
         assert.ok(test(body));
         done();
@@ -74,13 +90,13 @@ describe('transport-level client', () => {
 
   it('times out after a specified number of polls', (done) => {
     let test = (res => res.body.foo);
-    nock('http://example.com')
+    nock('https://example.com')
       .get('/foo').reply(200, {})
       .get('/foo').reply(200, {})
       .get('/foo').reply(200, {})
       .get('/foo').reply(200, {'foo': 'bar'});
 
-    TransportClient.poll('http://example.com/foo', test, 2, 10)
+    TransportClient.poll('https://example.com/foo', test, 2, 10)
       .then(() => { done(new Error('should have failed')); })
       .catch(() => { done(); });
   });
@@ -93,7 +109,7 @@ describe('transport-level client', () => {
       'location': 'https://example.com/asdf',
       'link':     '<https://example.com/terms>; rel="terms-of-service"'
     };
-    nock('http://example.com')
+    nock('https://example.com')
       .head('/foo').reply((uri, requestBody, cb) => {
         gotHEAD = true;
         cb(null, [200, '', {'replay-nonce': nonce}]);
@@ -115,7 +131,7 @@ describe('transport-level client', () => {
       .then(k => {
         let client = new TransportClient({accountKey: k});
         client.nonces.push(nonce);
-        return client.post('http://example.com/foo', {'foo': 'bar'});
+        return client.post('https://example.com/foo', {'foo': 'bar'});
       })
       .then(response => {
         assert.isFalse(gotHEAD);
@@ -134,7 +150,7 @@ describe('transport-level client', () => {
     let gotHEAD = false;
     let gotPOST = false;
     let nonce = 'foo';
-    nock('http://example.com')
+    nock('https://example.com')
       .head('/foo').reply((uri, requestBody, cb) => {
         gotHEAD = true;
         cb(null, [200, '', {'replay-nonce': nonce}]);
@@ -155,7 +171,7 @@ describe('transport-level client', () => {
     jose.newkey()
       .then(k => {
         let client = new TransportClient({accountKey: k});
-        return client.post('http://example.com/foo', {'foo': 'bar'});
+        return client.post('https://example.com/foo', {'foo': 'bar'});
       })
       .then(() => {
         assert.isTrue(gotHEAD);
@@ -166,13 +182,13 @@ describe('transport-level client', () => {
   });
 
   it('fails POST if preflight fails', (done) => {
-    nock('http://example.com')
+    nock('https://example.com')
       .head('/foo').reply(200);
 
     jose.newkey()
       .then(k => {
         let client = new TransportClient({accountKey: k});
-        return client.post('http://example.com/foo', {'foo': 'bar'});
+        return client.post('https://example.com/foo', {'foo': 'bar'});
       })
       .then(() => { done(new Error('should have failed')); })
       .catch(() => { done(); });
