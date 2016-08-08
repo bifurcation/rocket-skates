@@ -10,7 +10,6 @@ with no normative requirements are omitted.
 | Spec | Client | Server |
 |:-----|:-------|:-------|
 | Coverage | 19 / 31 (61.29%) | 19 / 31 (61.29%) |
-|:-----|:-------|:-------|
 | [5.1 HTTPS Requests](https://github.com/ietf-wg-acme/acme/blob/master/draft-ietf-acme-acme.md#https-requests) | --- | --- |
 | [5.2 Request Authentication](https://github.com/ietf-wg-acme/acme/blob/master/draft-ietf-acme-acme.md#request-authentication) | [transport-client.js:116](https://github.com/bifurcation/rocket-skates/tree/master/lib/client/transport-client.js#L116) | [transport-server.js:33](https://github.com/bifurcation/rocket-skates/tree/master/lib/server/transport-server.js#L33) |
 | [5.3 Request URI Integrity](https://github.com/ietf-wg-acme/acme/blob/master/draft-ietf-acme-acme.md#request-uri-integrity) | [transport-client.js:117](https://github.com/bifurcation/rocket-skates/tree/master/lib/client/transport-client.js#L117) | [transport-server.js:68](https://github.com/bifurcation/rocket-skates/tree/master/lib/server/transport-server.js#L68) |
