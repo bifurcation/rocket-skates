@@ -18,7 +18,7 @@ DNS01Validation.port = 5300;
 describe('dns-01 validation', () => {
   it('creates a correct response', (done) => {
     let challenge = {
-      url:   'http://localhost:8081/chall/asdf',
+      url:   'https://localhost:8081/chall/asdf',
       token: '12345'
     };
     let key;
@@ -42,7 +42,7 @@ describe('dns-01 validation', () => {
 
   it('fulfills an dns-01 challenge', (done) => {
     let challenge = {
-      url:   'http://localhost:8081/chall/asdf',
+      url:   'https://localhost:8081/chall/asdf',
       token: '12345'
     };
     let response = {
@@ -106,7 +106,7 @@ describe('dns-01 validation', () => {
 
   it('rejects an invalid request', (done) => {
     let challenge = {
-      url:   'http://localhost:8081/chall/asdf',
+      url:   'https://localhost:8081/chall/asdf',
       token: '12345'
     };
     let response = {

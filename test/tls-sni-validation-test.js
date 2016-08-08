@@ -18,7 +18,7 @@ TLSSNI02Validation.port = 4430;
 describe('tls-sni-02 validation', () => {
   it('creates a correct response', (done) => {
     let challenge = {
-      url:   'http://localhost:8081/chall/asdf',
+      url:   'https://localhost:8081/chall/asdf',
       token: '12345'
     };
     let key;
@@ -42,7 +42,7 @@ describe('tls-sni-02 validation', () => {
 
   it('fulfills an  challenge', (done) => {
     let challenge = {
-      url:   'http://localhost:8081/chall/asdf',
+      url:   'https://localhost:8081/chall/asdf',
       token: '12345'
     };
     let response = {
@@ -102,7 +102,7 @@ describe('tls-sni-02 validation', () => {
 
   it('fails if it is unable to create a certificate', (done) => {
     let challenge = {
-      url:   'http://localhost:8081/chall/asdf',
+      url:   'https://localhost:8081/chall/asdf',
       token: '12345'
     };
     let response = {
