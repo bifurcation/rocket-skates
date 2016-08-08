@@ -9,7 +9,7 @@ const assert            = require('chai').assert;
 const Promise           = require('bluebird');
 const pem               = require('pem');
 const tls               = require('tls');
-const TLSSNI02Challenge = require('../lib/challenges/tls-sni-challenge.js');
+const TLSSNI02Challenge = require('../lib/server/tls-sni-challenge.js');
 
 function newServer(names) {
   let options = {

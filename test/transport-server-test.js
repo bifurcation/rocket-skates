@@ -9,7 +9,7 @@ const assert          = require('chai').assert;
 const request         = require('supertest');
 const MockClient      = require('./tools/mock-client');
 const promisify       = require('./tools/promisify');
-const TransportServer = require('../lib/transport-server');
+const TransportServer = require('../lib/server/transport-server');
 
 let nonceRE = /^[a-zA-Z0-9-_]+$/;
 let mockClient = new MockClient();

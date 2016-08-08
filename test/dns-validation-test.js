@@ -10,7 +10,7 @@ const dns             = require('native-dns');
 const Promise         = require('bluebird');
 const crypto          = require('crypto');
 const jose            = require('../lib/jose');
-const DNS01Validation = require('../lib/validations/dns-validation.js');
+const DNS01Validation = require('../lib/client/dns-validation.js');
 
 DNS01Validation.resolver = '127.0.0.1';
 DNS01Validation.port = 5300;

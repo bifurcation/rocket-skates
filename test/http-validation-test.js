@@ -9,7 +9,7 @@ const assert           = require('chai').assert;
 const rp               = require('request-promise');
 const Promise          = require('bluebird');
 const jose             = require('../lib/jose');
-const HTTP01Validation = require('../lib/validations/http-validation.js');
+const HTTP01Validation = require('../lib/client/http-validation.js');
 
 HTTP01Validation.port = 8080;
 

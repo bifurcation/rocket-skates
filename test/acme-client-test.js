@@ -9,7 +9,7 @@ const assert         = require('chai').assert;
 const nock           = require('nock');
 const jose           = require('../lib/jose');
 const AutoValidation = require('./tools/auto-validation');
-const ACMEClient     = require('../lib/acme-client');
+const ACMEClient     = require('../lib/client/acme-client');
 
 
 describe('ACME client', () => {

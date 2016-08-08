@@ -8,7 +8,7 @@
 const assert          = require('chai').assert;
 const nock            = require('nock');
 const jose            = require('../lib/jose');
-const TransportClient = require('../lib/transport-client');
+const TransportClient = require('../lib/client/transport-client');
 
 describe('transport-level client', () => {
   afterEach(() => {

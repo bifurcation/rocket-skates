@@ -6,7 +6,7 @@
 'use strict';
 
 const assert = require('chai').assert;
-const nonceSource  = require('../lib/nonce-source');
+const nonceSource  = require('../lib/server/nonce-source');
 
 describe('nonce-source', () => {
   it('rejects bad nonces', () => {
