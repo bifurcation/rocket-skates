@@ -135,7 +135,7 @@ function renderTable(data) {
   let serverPct = (serverCount / tagCount * 100).toFixed(2);
   let coverageRow = `| Coverage `
                   + `| ${clientCount} / ${tagCount} (${clientPct}%) `
-                  + `| ${clientCount} / ${tagCount} (${clientPct}%) |`;
+                  + `| ${serverCount} / ${tagCount} (${serverPct}%) |`;
 
   let rows = [
     '| Spec | Client | Server |',
