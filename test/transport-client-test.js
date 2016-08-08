@@ -5,10 +5,14 @@
 
 'use strict';
 
-const assert          = require('chai').assert;
+const chai            = require('chai');
+const assert          = chai.assert;
+const chaiAsPromised  = require('chai-as-promised');
 const nock            = require('nock');
 const jose            = require('../lib/jose');
 const TransportClient = require('../lib/client/transport-client');
+
+chai.use(chaiAsPromised);
 
 describe('transport-level client', () => {
   afterEach(() => {
@@ -22,6 +26,18 @@ describe('transport-level client', () => {
     } catch (e) {
       assert.ok(true);
     }
+  });
+
+  it('rejects requests to non-HTTPS URLs', () => {
+    assert.isRejected(TransportClient.get('http://example.com'));
+    assert.isRejected(TransportClient.poll('http://example.com'));
+
+    assert.isRejected(jose.newkey()
+      .then(k => {
+        let client = new TransportClient({accountKey: k});
+        client.nonces.push('asdf');
+        return client.post('http://example.com/foo', {'foo': 'bar'});
+      }));
   });
 
   it('performs a JSON GET request', (done) => {

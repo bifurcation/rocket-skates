@@ -18,8 +18,6 @@ const port = 4300;
 const nonceRE = /^[a-zA-Z0-9-_]+$/;
 const mockClient = new MockClient();
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
 describe('transport-level server', () => {
   let serverOptions;
   let transport;
@@ -30,7 +28,8 @@ describe('transport-level server', () => {
       .then(options => {
         serverOptions = options;
         done();
-      });
+      })
+      .catch(done);
   });
 
   beforeEach(done => {
@@ -74,6 +73,15 @@ describe('transport-level server', () => {
         done();
       })
       .catch(done);
+  });
+
+  it('refuses a non-HTTPS request', (done) => {
+    transport = new TransportServer();
+    let httpServer = transport.app.listen(8080, () => {
+      request(httpServer)
+        .get('/')
+        .expect(500, done);
+    });
   });
 
   it('rejects a POST with a bad nonce', (done) => {
