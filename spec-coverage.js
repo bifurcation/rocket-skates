@@ -141,7 +141,6 @@ function renderTable(data) {
     '| Spec | Client | Server |',
     '|:-----|:-------|:-------|',
     coverageRow,
-    '|:-----|:-------|:-------|',
   ];
 
   for (let row of data) {
