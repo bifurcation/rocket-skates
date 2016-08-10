@@ -12,7 +12,7 @@ const https         = require('https');
 const MockClient    = require('./tools/mock-client');
 const AutoChallenge = require('./tools/auto-challenge');
 const promisify     = require('./tools/promisify');
-const serverCert    = require('./tools/server-certificate');
+const cachedCrypto  = require('./tools/cached-crypto');
 const jose          = require('../lib/jose');
 const pki           = require('../lib/server/pki');
 const ACMEServer    = require('../lib/server/acme-server');
@@ -68,27 +68,20 @@ function registerKey(key, server) {
 }
 
 describe('ACME server', () => {
-  let serverOptions;
   let httpsServer;
   let acmeServer;
   let testServer;
 
-  before(function(done) {
+  beforeEach(function(done) {
     this.timeout(10000);
     localCA.generate()
-      .then(() => serverCert())
-      .then(options => {
-        serverOptions = options;
-        done();
-      })
-      .catch(done);
-  });
-
-  beforeEach(done => {
-    acmeServer = new ACMEServer(serverConfig);
-    httpsServer = https.createServer(serverOptions, acmeServer.app);
-    httpsServer.listen(port, done);
-    testServer = request(httpsServer);
+      .then(() => cachedCrypto.tlsConfig)
+      .then(tlsConfig => {
+        acmeServer = new ACMEServer(serverConfig);
+        httpsServer = https.createServer(tlsConfig, acmeServer.app);
+        testServer = request(httpsServer);
+        httpsServer.listen(port, done);
+      });
   });
 
   afterEach(done => {
@@ -295,7 +288,7 @@ describe('ACME server', () => {
 
   it('rejects a registration update with the wrong key', (done) => {
     let regThumbprint;
-    jose.newkey()
+    cachedCrypto.key
       .then(k => registerKey(k, acmeServer))
       .then(thumbprint => {
         regThumbprint = thumbprint;
@@ -724,7 +717,7 @@ describe('ACME server', () => {
 
   it('rejects an update to an authz by the wrong key', (done) => {
     let challPath;
-    jose.newkey()
+    cachedCrypto.key
       .then(k => k.thumbprint())
       .then(tpBuffer => {
         let thumbprint = jose.base64url.encode(tpBuffer);

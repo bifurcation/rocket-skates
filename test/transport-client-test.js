@@ -9,6 +9,7 @@ const chai            = require('chai');
 const assert          = chai.assert;
 const chaiAsPromised  = require('chai-as-promised');
 const nock            = require('nock');
+const cachedCrypto    = require('./tools/cached-crypto');
 const jose            = require('../lib/jose');
 const TransportClient = require('../lib/client/transport-client');
 
@@ -32,12 +33,11 @@ describe('transport-level client', () => {
     assert.isRejected(TransportClient.get('http://example.com'));
     assert.isRejected(TransportClient.poll('http://example.com'));
 
-    assert.isRejected(jose.newkey()
-      .then(k => {
-        let client = new TransportClient({accountKey: k});
-        client.nonces.push('asdf');
-        return client.post('http://example.com/foo', {'foo': 'bar'});
-      }));
+    assert.isRejected(cachedCrypto.key.then(k => {
+      let client = new TransportClient({accountKey: k});
+      client.nonces.push('asdf');
+      return client.post('http://example.com/foo', {'foo': 'bar'});
+    }));
   });
 
   it('performs a JSON GET request', (done) => {
@@ -127,7 +127,7 @@ describe('transport-level client', () => {
           });
       });
 
-    jose.newkey()
+    cachedCrypto.key
       .then(k => {
         let client = new TransportClient({accountKey: k});
         client.nonces.push(nonce);
@@ -168,7 +168,7 @@ describe('transport-level client', () => {
           });
       });
 
-    jose.newkey()
+    cachedCrypto.key
       .then(k => {
         let client = new TransportClient({accountKey: k});
         return client.post('https://example.com/foo', {'foo': 'bar'});
@@ -185,7 +185,7 @@ describe('transport-level client', () => {
     nock('https://example.com')
       .head('/foo').reply(200);
 
-    jose.newkey()
+    cachedCrypto.key
       .then(k => {
         let client = new TransportClient({accountKey: k});
         return client.post('https://example.com/foo', {'foo': 'bar'});

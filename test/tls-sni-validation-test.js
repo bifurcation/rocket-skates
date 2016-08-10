@@ -10,6 +10,7 @@ const tls                = require('tls');
 const Promise            = require('bluebird');
 const crypto             = require('crypto');
 const pem                = require('pem');
+const cachedCrypto       = require('./tools/cached-crypto');
 const jose               = require('../lib/jose');
 const TLSSNI02Validation = require('../lib/client/tls-sni-validation');
 
@@ -24,7 +25,7 @@ describe('tls-sni-02 validation', () => {
     let key;
     let keyAuthorization;
 
-    jose.newkey()
+    cachedCrypto.key
       .then(k => {
         key = k;
         return key.thumbprint();

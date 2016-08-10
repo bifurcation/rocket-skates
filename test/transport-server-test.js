@@ -10,7 +10,7 @@ const request         = require('supertest');
 const https           = require('https');
 const MockClient      = require('./tools/mock-client');
 const promisify       = require('./tools/promisify');
-const serverCert      = require('./tools/server-certificate');
+const cachedCrypto    = require('./tools/cached-crypto');
 const TransportServer = require('../lib/server/transport-server');
 
 const port = 4300;
@@ -19,23 +19,16 @@ const nonceRE = /^[a-zA-Z0-9-_]+$/;
 const mockClient = new MockClient();
 
 describe('transport-level server', () => {
-  let serverOptions;
   let transport;
   let server;
 
-  before(done => {
-    serverCert()
-      .then(options => {
-        serverOptions = options;
-        done();
-      })
-      .catch(done);
-  });
-
   beforeEach(done => {
-    transport = new TransportServer();
-    server = https.createServer(serverOptions, transport.app);
-    server.listen(port, done);
+    cachedCrypto.tlsConfig
+      .then(tlsConfig => {
+        transport = new TransportServer();
+        server = https.createServer(tlsConfig, transport.app);
+        server.listen(port, done);
+      });
   });
 
   afterEach(done => {

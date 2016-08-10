@@ -8,6 +8,7 @@
 const assert         = require('chai').assert;
 const nock           = require('nock');
 const jose           = require('../lib/jose');
+const cachedCrypto   = require('./tools/cached-crypto');
 const AutoValidation = require('./tools/auto-validation');
 const ACMEClient     = require('../lib/client/acme-client');
 
@@ -30,9 +31,8 @@ describe('ACME client', () => {
   let testCert = 'MII...';
 
   before((done) => {
-    jose.newkey()
-      .then(k => { accountKey = k; })
-      .then(done)
+    cachedCrypto.key
+      .then(k => { accountKey = k; done(); })
       .catch(done);
   });
 

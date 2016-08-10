@@ -8,6 +8,7 @@
 const assert           = require('chai').assert;
 const rp               = require('request-promise');
 const Promise          = require('bluebird');
+const cachedCrypto     = require('./tools/cached-crypto');
 const jose             = require('../lib/jose');
 const HTTP01Validation = require('../lib/client/http-validation.js');
 
@@ -22,7 +23,7 @@ describe('http-01 validation', () => {
     let key;
     let keyAuthorization;
 
-    jose.newkey()
+    cachedCrypto.key
       .then(k => {
         key = k;
         return key.thumbprint();
