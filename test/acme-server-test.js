@@ -72,10 +72,15 @@ describe('ACME server', () => {
   let acmeServer;
   let testServer;
 
-  beforeEach(function(done) {
-    this.timeout(10000);
-    localCA.generate()
-      .then(() => cachedCrypto.tlsConfig)
+  before(function(done) {
+    this.timeout(15000);
+    localCA.keys()
+      .then(() => { done(); })
+      .catch(done);
+  });
+
+  beforeEach((done) => {
+    cachedCrypto.tlsConfig
       .then(tlsConfig => {
         acmeServer = new ACMEServer(serverConfig);
         httpsServer = https.createServer(tlsConfig, acmeServer.app);
