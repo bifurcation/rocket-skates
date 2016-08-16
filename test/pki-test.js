@@ -9,7 +9,7 @@ const assert       = require('chai').assert;
 const forge        = require('node-forge');
 const jose         = require('node-jose');
 const cachedCrypto = require('./tools/cached-crypto');
-const pki          = require('../lib/server/pki');
+const pki          = require('../lib/pki');
 
 let csrKeys = forge.pki.rsa.generateKeyPair(1024);
 

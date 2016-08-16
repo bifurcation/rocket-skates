@@ -14,7 +14,7 @@ const AutoChallenge = require('./tools/auto-challenge');
 const promisify     = require('./tools/promisify');
 const cachedCrypto  = require('./tools/cached-crypto');
 const jose          = require('../lib/jose');
-const pki           = require('../lib/server/pki');
+const pki           = require('../lib/pki');
 const ACMEServer    = require('../lib/server/acme-server');
 
 let localCA = new pki.CA();
