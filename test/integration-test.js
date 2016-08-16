@@ -177,9 +177,26 @@ describe('ACME-level client/server integration', () => {
       .then(response => {
         assert.equal(response.response.statusCode, 201);
         assert.property(response.body, 'key');
+        assert.deepEqual(response.body.key, acmeClient.client.accountKey.toJSON());
         assert.property(response.body, 'contact');
         assert.deepEqual(response.body.contact, contact);
         done();
+      })
+      .catch(done);
+  });
+
+  it('requests a certificate', function(done) {
+    this.timeout(10000);
+
+    let contact = ['mailto:someone@example.com'];
+    acmeClient.register(contact)
+      .then(() => {
+        acmeClient.requestCertificate(cachedCrypto.certReq.csr,
+                                      cachedCrypto.certReq.notBefore,
+                                      cachedCrypto.certReq.notAfter)
+          .then(() => {
+            done();
+          });
       })
       .catch(done);
   });
