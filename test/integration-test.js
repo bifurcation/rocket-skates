@@ -141,11 +141,16 @@ describe('ACME-level client/server integration', () => {
     validationTypes: [AutoValidation]
   };
 
-  beforeEach(function(done) {
+  before(function(done) {
     this.timeout(10000);
+    localCA.keys()
+      .then(() => { done(); })
+      .catch(done);
+  });
+
+  beforeEach((done) => {
     acmeServer = new ACMEServer(acmeServerConfig);
-    localCA.generate()
-      .then(() => cachedCrypto.key)
+    cachedCrypto.key
       .then(k => {
         acmeClientConfig.accountKey = k;
         acmeClient = new ACMEClient(acmeClientConfig);
@@ -185,9 +190,7 @@ describe('ACME-level client/server integration', () => {
       .catch(done);
   });
 
-  it('requests a certificate', function(done) {
-    this.timeout(10000);
-
+  it('requests a certificate', (done) => {
     let contact = ['mailto:someone@example.com'];
     acmeClient.register(contact)
       .then(() => {
