@@ -5,10 +5,11 @@
 
 'use strict';
 
-const assert = require('chai').assert;
-const forge  = require('node-forge');
-const jose   = require('node-jose');
-const pki    = require('../lib/server/pki');
+const assert       = require('chai').assert;
+const forge        = require('node-forge');
+const jose         = require('node-jose');
+const cachedCrypto = require('./tools/cached-crypto');
+const pki          = require('../lib/pki');
 
 let csrKeys = forge.pki.rsa.generateKeyPair(1024);
 
@@ -33,6 +34,38 @@ function generateCSR(options) {
   let base64url = jose.util.base64url.encode(bytes);
 
   return base64url;
+}
+
+function generateCert(options) {
+  let cert = forge.pki.createCertificate();
+
+  let defaultSubject = [{
+    name:  'commonName',
+    value: cachedCrypto.certReq.names[0]
+  }];
+  let defaultExtensions = [{
+    name:     'subjectAltName',
+    altNames: cachedCrypto.certReq.names.map(name => {
+      return { type: 2, value: name };
+    })
+  }];
+
+  cert.serialNumber = '01';
+  cert.setIssuer({ name: 'commonName', value: 'Happy Hacker Fake CA' });
+
+  cert.publicKey = options.publicKey || cachedCrypto.certReq.publicKey;
+  cert.validity.notBefore = options.notBefore || cachedCrypto.certReq.notBefore;
+  cert.validity.notAfter = options.notAfter || cachedCrypto.certReq.notAfter;
+  cert.setSubject(options.subject || defaultSubject);
+  cert.setExtensions(options.extensions || defaultExtensions);
+
+  cert.sign(csrKeys.privateKey);
+
+  let asn1 = forge.pki.certificateToAsn1(cert);
+  let der = forge.asn1.toDer(asn1);
+  let bytes = new Buffer(forge.util.bytesToHex(der), 'hex');
+
+  return bytes;
 }
 
 let csrs = {
@@ -149,15 +182,38 @@ let csrs = {
   }
 };
 
+let certs = {
+  badNotBefore: { notBefore: new Date('2010-01-01') },
+  badNotAfter:  { notAfter: new Date('2010-01-01') },
+  badSubject:   { subject: [] },
+  badKey:       { publicKey: csrKeys.publicKey },
+  badSANs:      { extensions: [] }
+};
+
 function errorOn(test) {
-  return () => {
+  return (done) => {
     try {
       let csr = generateCSR(csrs[test]);
       let parsed = pki.parseCSR(csr);
       pki.checkCSR(parsed);
-      assert.isTrue(false);
+      done(new Error('failed to reject invalid CSR'));
     } catch (e) {
-      assert.isTrue(true);
+      done();
+    }
+  };
+}
+
+function noMatch(test) {
+  return (done) => {
+    try {
+      let cert = generateCert(certs[test]);
+      pki.checkCertMatch(cert,
+                         cachedCrypto.certReq.csr,
+                         cachedCrypto.certReq.notBefore,
+                         cachedCrypto.certReq.notAfter);
+      done(new Error('failed to reject match'));
+    } catch (e) {
+      done();
     }
   };
 }
@@ -242,8 +298,30 @@ describe('PKI utilities module', () => {
   it('rejects a CSR with no names at all',                      errorOn('noNames'));
   it('rejects a CSR with DN components other than CN',          errorOn('noCN'));
 
+  it('accepts a certificate matching an application', () => {
+    pki.checkCertMatch(cachedCrypto.certReq.cert,
+                       cachedCrypto.certReq.csr,
+                       cachedCrypto.certReq.notBefore,
+                       cachedCrypto.certReq.notAfter);
+  });
+
+  it('rejects a cert match with no CSR', () => {
+    try {
+      pki.checkCertMatch();
+      assert.isTrue(false);
+    } catch (e) {
+      assert.isTrue(true);
+    }
+  });
+
+  it('rejects a cert match with a bad notBefore',  noMatch('badNotBefore'));
+  it('rejects a cert match with a bad notAfter',   noMatch('badNotAfter'));
+  it('rejects a cert match with a bad subject',    noMatch('badSubject'));
+  it('rejects a cert match with a bad public key', noMatch('badKey'));
+  it('rejects a cert match with bad SANs',         noMatch('badSANs'));
+
   it('generates and caches keys', function(done) {
-    this.timeout(10000);
+    this.timeout(15000);
 
     let firstKeys;
     localCA.keys()

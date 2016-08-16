@@ -25,11 +25,6 @@ describe('ACME client', () => {
   };
   let server = nock('https://example.com');
 
-  let testCSR = 'non-empty';
-  let testNotBefore = new Date('2017-01-01T00:00:00Z');
-  let testNotAfter = new Date('2017-02-01T00:00:00Z');
-  let testCert = 'MII...';
-
   before((done) => {
     cachedCrypto.key
       .then(k => { accountKey = k; done(); })
@@ -384,7 +379,7 @@ describe('ACME client', () => {
           .get('/app/asdf').reply(200, app)
           .get('/app/asdf').reply(200, app)
           .get('/app/asdf').reply(200, completed)
-          .get('/cert/asdf').reply(200, testCert);
+          .get('/cert/asdf').reply(200, cachedCrypto.certReq.cert);
 
     let client = new ACMEClient({
       accountKey:      accountKey,
@@ -399,7 +394,7 @@ describe('ACME client', () => {
         assert.isTrue(gotNewApp);
         assert.isTrue(gotAuthzFetch);
         assert.isTrue(gotChallengePOST);
-        assert.equal(cert, testCert);
+        assert.isTrue(cachedCrypto.certReq.cert.equals(cert));
         done();
       })
       .catch(done);
@@ -407,12 +402,12 @@ describe('ACME client', () => {
 
   it('fetches a pre-issued certificate', (done) => {
     let app = {
-      csr:       testCSR,
-      notBefore: testNotBefore.toJSON(),
-      notAfter:  testNotAfter.toJSON(),
+      csr:       cachedCrypto.certReq.csr,
+      notBefore: cachedCrypto.certReq.notBefore.toJSON(),
+      notAfter:  cachedCrypto.certReq.notAfter.toJSON(),
 
       status:  'pending',
-      expires: testNotAfter.toJSON(),
+      expires: cachedCrypto.certReq.notAfter.toJSON(),
 
       requirements: [{
         type:   'authorization',
@@ -439,7 +434,7 @@ describe('ACME client', () => {
           .get('/cert/asdf')
           .reply((uri, jws, cb) => {
             gotCertFetch = true;
-            cb(null, [200, testCert]);
+            cb(null, [200, cachedCrypto.certReq.cert]);
           });
 
     let client = new ACMEClient({
@@ -448,7 +443,10 @@ describe('ACME client', () => {
       validationTypes: [AutoValidation]
     });
     client.registrationURL = 'non-null';
-    client.requestCertificate(testCSR, testNotBefore, testNotAfter)
+    client.requestCertificate(
+        cachedCrypto.certReq.csr,
+        cachedCrypto.certReq.notBefore,
+        cachedCrypto.certReq.notAfter)
       .then(() => {
         assert.isTrue(gotNewApp);
         assert.isTrue(gotCertFetch);
@@ -463,7 +461,10 @@ describe('ACME client', () => {
       directoryURL:    directoryURL,
       validationTypes: [AutoValidation]
     });
-    client.requestCertificate(testCSR, testNotBefore, testNotAfter)
+    client.requestCertificate(
+        cachedCrypto.certReq.csr,
+        cachedCrypto.certReq.notBefore,
+        cachedCrypto.certReq.notAfter)
       .then(() => { done(new Error('new-app succeeded when it should not have')); })
       .catch(err => {
         assert.equal(err.message, 'Cannot request a certificate without registering');
@@ -478,7 +479,10 @@ describe('ACME client', () => {
       directoryURL: directoryURL
     });
     client.registrationURL = 'non-null';
-    client.requestCertificate(testCSR, testNotBefore, testNotAfter)
+    client.requestCertificate(
+        cachedCrypto.certReq.csr,
+        cachedCrypto.certReq.notBefore,
+        cachedCrypto.certReq.notAfter)
       .then(() => { done(new Error('New-app succeeded when it should not have')); })
       .catch(err => {
         if (msg) {
@@ -523,7 +527,7 @@ describe('ACME client', () => {
 
   it('fails if the application has the wrong CSR', (done) => {
     testInvalidApp(done, {
-      csr:          testCSR + '-not',
+      csr:          cachedCrypto.certReq.csr + '-not',
       status:       'pending',
       requirements: []
     }, 'Incorrect CSR in application');
@@ -531,7 +535,7 @@ describe('ACME client', () => {
 
   it('fails if the application has the wrong notBefore', (done) => {
     testInvalidApp(done, {
-      csr:          testCSR,
+      csr:          cachedCrypto.certReq.csr,
       status:       'pending',
       requirements: []
     }, 'Incorrect notBefore in application');
@@ -539,8 +543,8 @@ describe('ACME client', () => {
 
   it('fails if the application has the wrong notAfter', (done) => {
     testInvalidApp(done, {
-      csr:          testCSR,
-      notBefore:    testNotBefore.toJSON(),
+      csr:          cachedCrypto.certReq.csr,
+      notBefore:    cachedCrypto.certReq.notBefore.toJSON(),
       status:       'pending',
       requirements: []
     }, 'Incorrect notAfter in application');
@@ -548,9 +552,9 @@ describe('ACME client', () => {
 
   it('fails if the application has no requirements', (done) => {
     testInvalidApp(done, {
-      csr:          testCSR,
-      notBefore:    testNotBefore.toJSON(),
-      notAfter:     testNotAfter.toJSON(),
+      csr:          cachedCrypto.certReq.csr,
+      notBefore:    cachedCrypto.certReq.notBefore.toJSON(),
+      notAfter:     cachedCrypto.certReq.notAfter.toJSON(),
       status:       'pending',
       requirements: []
     }, 'No requirements in application');
@@ -558,9 +562,9 @@ describe('ACME client', () => {
 
   it('fails if the application has an unsupported requirement', (done) => {
     testInvalidApp(done, {
-      csr:          testCSR,
-      notBefore:    testNotBefore.toJSON(),
-      notAfter:     testNotAfter.toJSON(),
+      csr:          cachedCrypto.certReq.csr,
+      notBefore:    cachedCrypto.certReq.notBefore.toJSON(),
+      notAfter:     cachedCrypto.certReq.notAfter.toJSON(),
       status:       'pending',
       requirements: [{type: 'unsupported'}]
     }, 'Unsupported requirement type: unsupported');
@@ -568,9 +572,9 @@ describe('ACME client', () => {
 
   function testInvalidAuthz(done, authz, msg) {
     let app = {
-      csr:          testCSR,
-      notBefore:    testNotBefore.toJSON(),
-      notAfter:     testNotAfter.toJSON(),
+      csr:          cachedCrypto.certReq.csr,
+      notBefore:    cachedCrypto.certReq.notBefore.toJSON(),
+      notAfter:     cachedCrypto.certReq.notAfter.toJSON(),
       status:       'pending',
       requirements: [{
         type:   'authorization',
