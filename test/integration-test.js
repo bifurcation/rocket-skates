@@ -8,7 +8,10 @@
 const assert             = require('chai').assert;
 const https              = require('https');
 const cachedCrypto       = require('./tools/cached-crypto');
+const AutoChallenge      = require('./tools/auto-challenge');
+const AutoValidation     = require('./tools/auto-validation');
 const jose               = require('../lib/jose');
+const pki                = require('../lib/server/pki');
 const TransportClient    = require('../lib/client/transport-client');
 const TransportServer    = require('../lib/server/transport-server');
 const HTTP01Challenge    = require('../lib/server/http-challenge');
@@ -17,6 +20,8 @@ const DNS01Challenge     = require('../lib/server/dns-challenge');
 const DNS01Validation    = require('../lib/client/dns-validation');
 const TLSSNI02Challenge  = require('../lib/server/tls-sni-challenge');
 const TLSSNI02Validation = require('../lib/client/tls-sni-validation');
+const ACMEClient         = require('../lib/client/acme-client');
+const ACMEServer         = require('../lib/server/acme-server');
 
 const port = 4430;
 
@@ -116,4 +121,83 @@ describe('challenge/validation integration', () => {
   it('http-01', testChallengeValidation(HTTP01Challenge, HTTP01Validation));
   it('dns-01', testChallengeValidation(DNS01Challenge, DNS01Validation));
   it('tls-sni-02', testChallengeValidation(TLSSNI02Challenge, TLSSNI02Validation));
+});
+
+describe('ACME-level client/server integration', () => {
+  let httpsServer;
+  let acmeServer;
+  let acmeClient;
+
+  let localCA = new pki.CA();
+  const acmeServerConfig = {
+    host:           '127.0.0.1',
+    port:           port,
+    challengeTypes: [AutoChallenge],
+    CA:             localCA
+  };
+  const acmeClientConfig = {
+    accountKey:      null,
+    directoryURL:    `https://127.0.0.1:${port}/directory`,
+    validationTypes: [AutoValidation]
+  };
+
+  beforeEach(function(done) {
+    this.timeout(10000);
+    acmeServer = new ACMEServer(acmeServerConfig);
+    localCA.generate()
+      .then(() => cachedCrypto.key)
+      .then(k => {
+        acmeClientConfig.accountKey = k;
+        acmeClient = new ACMEClient(acmeClientConfig);
+        return cachedCrypto.tlsConfig;
+      })
+      .then(config => {
+        httpsServer = https.createServer(config, acmeServer.app);
+        return httpsServer.listen(port, done);
+      })
+      .catch(done);
+  });
+
+  afterEach(done => {
+    httpsServer.close(done);
+  });
+
+  it('fetches the directory', (done) => {
+    acmeClient.directory()
+      .then(dir => {
+        assert.isObject(dir);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('registers an account key', (done) => {
+    let contact = ['mailto:someone@example.com'];
+    acmeClient.register(contact)
+      .then(response => {
+        assert.equal(response.response.statusCode, 201);
+        assert.property(response.body, 'key');
+        assert.deepEqual(response.body.key, acmeClient.client.accountKey.toJSON());
+        assert.property(response.body, 'contact');
+        assert.deepEqual(response.body.contact, contact);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('requests a certificate', function(done) {
+    this.timeout(10000);
+
+    let contact = ['mailto:someone@example.com'];
+    acmeClient.register(contact)
+      .then(() => {
+        acmeClient.requestCertificate(cachedCrypto.certReq.csr,
+                                      cachedCrypto.certReq.notBefore,
+                                      cachedCrypto.certReq.notAfter)
+          .then(() => {
+            done();
+          });
+      })
+      .catch(done);
+  });
 });

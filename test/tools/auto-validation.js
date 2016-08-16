@@ -7,7 +7,10 @@
 
 class AutoValidation {
   static makeResponse(key, challenge) {
-    return Promise.resolve({token: challenge.token});
+    return Promise.resolve({
+      type:  AutoValidation.type,
+      token: challenge.token
+    });
   }
 
   static respond() {}

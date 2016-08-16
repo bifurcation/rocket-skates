@@ -309,17 +309,17 @@ describe('ACME client', () => {
 
   it('requests a certificate', (done) => {
     let stub = {
-      csr:       testCSR,
-      notBefore: testNotBefore.toJSON(),
-      notAfter:  testNotAfter.toJSON()
+      csr:       cachedCrypto.certReq.csr,
+      notBefore: cachedCrypto.certReq.notBefore.toJSON(),
+      notAfter:  cachedCrypto.certReq.notAfter.toJSON()
     };
     let app = {
-      csr:       testCSR,
-      notBefore: testNotBefore.toJSON(),
-      notAfter:  testNotAfter.toJSON(),
+      csr:       cachedCrypto.certReq.csr,
+      notBefore: cachedCrypto.certReq.notBefore.toJSON(),
+      notAfter:  cachedCrypto.certReq.notAfter.toJSON(),
 
       status:  'pending',
-      expires: testNotAfter.toJSON(),
+      expires: cachedCrypto.certReq.notAfter.toJSON(),
 
       requirements: [{
         type:   'authorization',
@@ -392,7 +392,9 @@ describe('ACME client', () => {
       validationTypes: [AutoValidation]
     });
     client.registrationURL = 'non-null';
-    client.requestCertificate(testCSR, testNotBefore, testNotAfter)
+    client.requestCertificate(cachedCrypto.certReq.csr,
+                              cachedCrypto.certReq.notBefore,
+                              cachedCrypto.certReq.notAfter)
       .then(cert => {
         assert.isTrue(gotNewApp);
         assert.isTrue(gotAuthzFetch);
