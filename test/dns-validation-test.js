@@ -9,6 +9,7 @@ const assert          = require('chai').assert;
 const dns             = require('native-dns');
 const Promise         = require('bluebird');
 const crypto          = require('crypto');
+const cachedCrypto    = require('./tools/cached-crypto');
 const jose            = require('../lib/jose');
 const DNS01Validation = require('../lib/client/dns-validation.js');
 
@@ -24,7 +25,7 @@ describe('dns-01 validation', () => {
     let key;
     let keyAuthorization;
 
-    jose.newkey()
+    cachedCrypto.key
       .then(k => {
         key = k;
         return key.thumbprint();

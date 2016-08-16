@@ -7,7 +7,7 @@
 
 const assert             = require('chai').assert;
 const https              = require('https');
-const serverCert         = require('./tools/server-certificate');
+const cachedCrypto       = require('./tools/cached-crypto');
 const jose               = require('../lib/jose');
 const TransportClient    = require('../lib/client/transport-client');
 const TransportServer    = require('../lib/server/transport-server');
@@ -21,22 +21,16 @@ const TLSSNI02Validation = require('../lib/client/tls-sni-validation');
 const port = 4430;
 
 describe('transport-level client/server integration', () => {
-  let serverOptions;
   let transport;
   let server;
 
-  before(done => {
-    serverCert()
-      .then(options => {
-        serverOptions = options;
-        done();
-      });
-  });
-
   beforeEach(done => {
     transport = new TransportServer();
-    server = https.createServer(serverOptions, transport.app);
-    server.listen(port, done);
+    cachedCrypto.tlsConfig
+      .then(config => {
+        server = https.createServer(config, transport.app);
+        server.listen(port, done);
+      });
   });
 
   afterEach(done => {
@@ -56,7 +50,7 @@ describe('transport-level client/server integration', () => {
       res.json(result);
     });
 
-    jose.newkey()
+    cachedCrypto.key
       .then(k => {
         let client = new TransportClient({accountKey: k});
         return client.post(url, query);
@@ -77,7 +71,7 @@ function testChallengeValidation(challengeType, validationType) {
     let challenge;
     let response;
 
-    jose.newkey()
+    cachedCrypto.key
       .then(k => {
         key = k;
         return key.thumbprint();
@@ -123,4 +117,3 @@ describe('challenge/validation integration', () => {
   it('dns-01', testChallengeValidation(DNS01Challenge, DNS01Validation));
   it('tls-sni-02', testChallengeValidation(TLSSNI02Challenge, TLSSNI02Validation));
 });
-
