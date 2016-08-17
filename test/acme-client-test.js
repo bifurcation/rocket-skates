@@ -722,4 +722,21 @@ describe('ACME client', () => {
       done();
     }
   });
+
+  it('fails if there is no revoke-cert endpoint', (done) => {
+    server.get('/directory').reply(200, {});
+
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.registrationURL = 'non-null';
+    client.revokeCertificate()
+      .then(() => { done(new Error('New-app succeeded when it should not have')); })
+      .catch(err => {
+        assert.equal(err.message, 'Server does not have a certificate revocation endpoint');
+        done();
+      })
+      .catch(done);
+  });
 });

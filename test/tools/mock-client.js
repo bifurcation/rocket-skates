@@ -8,6 +8,10 @@
 const jose = require('../../lib/jose');
 
 class MockClient {
+  constructor(key) {
+    this._key = key;
+  }
+
   key() {
     if (this._key) {
       return Promise.resolve(this._key);

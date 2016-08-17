@@ -103,11 +103,12 @@ module.exports = {
   },
 
   certReq: {
-    csr:       csrB64url,
-    notBefore: notBefore,
-    notAfter:  notAfter,
-    names:     names,
-    cert:      certBuf,
-    publicKey: keys.publicKey
+    csr:        csrB64url,
+    notBefore:  notBefore,
+    notAfter:   notAfter,
+    names:      names,
+    cert:       certBuf,
+    privateKey: keys.privateKey,
+    publicKey:  keys.publicKey
   }
 };

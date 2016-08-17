@@ -9,6 +9,8 @@ const assert        = require('chai').assert;
 const request       = require('supertest');
 const urlParse      = require('url').parse;
 const https         = require('https');
+const forge         = require('node-forge');
+const nodeJose      = require('node-jose');
 const MockClient    = require('./tools/mock-client');
 const AutoChallenge = require('./tools/auto-challenge');
 const promisify     = require('./tools/promisify');
@@ -760,7 +762,7 @@ describe('ACME server', () => {
         };
         acmeServer.db.put(cert);
 
-        certPath = `/cert/${thumbprint}`;
+        certPath = `/cert/${cert.thumbprint}`;
 
         let revocationRequest = {
           certificate: jose.base64url.encode(certDER),
@@ -778,18 +780,184 @@ describe('ACME server', () => {
       .then(res => {
         assert.equal(res.status, 200);
         assert.property(res.headers, 'revocation-reason');
+        assert.equal(parseInt(res.headers['revocation-reason']), reason);
         done();
       })
       .catch(done);
   });
 
-  it('revokes a certificate when authorized by another account key', () => {
-    // Provision reg
-    // Provision authz
-    // Provision cert
+  it('revokes a certificate when authorized by another account key', (done) => {
+    let certDER = cachedCrypto.certReq.cert;
+    let reason = 3;
+    let revokePath = '/revoke-cert';
+
+    mockClient.key()
+      .then(k => registerKey(k, acmeServer))
+      .then(thumbprint => {
+        let notThumbprint = 'not-' + thumbprint;
+
+        cachedCrypto.certReq.names.map(name => {
+          acmeServer.db.put({
+            id:         thumbprint + name,
+            thumbprint: thumbprint,
+            identifier: { type: 'dns', value: name },
+            type:       function() { return 'authz'; }
+          });
+        });
+
+        let cert = {
+          id:          notThumbprint,
+          thumbprint:  notThumbprint,
+          der:         certDER,
+          type:        function() { return 'cert'; },
+          marshal:     function() { return this.der; },
+          contentType: function() { return 'application/pkix-cert'; }
+        };
+        acmeServer.db.put(cert);
+
+        let revocationRequest = {
+          certificate: jose.base64url.encode(certDER),
+          reason:      reason
+        };
+        let url = acmeServer.baseURL + revokePath;
+        let nonce = acmeServer.transport.nonces.get();
+        return mockClient.makeJWS(nonce, url, revocationRequest);
+      })
+      .then(jws => promisify(testServer.post(revokePath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 200);
+        done();
+      })
+      .catch(done);
   });
 
-  it('revokes a certificate when authorized by the certificate key', () => {
-    // Provision cert
+  it('revokes a certificate when authorized by the certificate key', (done) => {
+    let certDER = cachedCrypto.certReq.cert;
+    let reason = 3;
+    let revokePath = '/revoke-cert';
+
+    let privASN1 = forge.pki.privateKeyToAsn1(cachedCrypto.certReq.privateKey);
+    let pkcs8Bytes = forge.asn1.toDer(forge.pki.wrapRsaPrivateKey(privASN1));
+    let pkcs8 = new Buffer(forge.util.bytesToHex(pkcs8Bytes), 'hex');
+
+    nodeJose.JWK.asKey(pkcs8, 'pkcs8')
+      .then(jwk => {
+        let client = new MockClient(jwk);
+
+        let notThumbprint = 'not-thumbprint';
+        let cert = {
+          id:          notThumbprint,
+          thumbprint:  notThumbprint,
+          der:         certDER,
+          type:        function() { return 'cert'; },
+          marshal:     function() { return this.der; },
+          contentType: function() { return 'application/pkix-cert'; }
+        };
+        acmeServer.db.put(cert);
+
+        let revocationRequest = {
+          certificate: jose.base64url.encode(certDER),
+          reason:      reason
+        };
+        let url = acmeServer.baseURL + revokePath;
+        let nonce = acmeServer.transport.nonces.get();
+        return client.makeJWS(nonce, url, revocationRequest);
+      })
+      .then(jws => promisify(testServer.post(revokePath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 200);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('blocks revocation of an unknown cert', (done) => {
+    let revokePath = '/revoke-cert';
+    let revocationRequest = { certificate: 'unknown-cert' };
+    let url = acmeServer.baseURL + revokePath;
+    let nonce = acmeServer.transport.nonces.get();
+
+    mockClient.makeJWS(nonce, url, revocationRequest)
+      .then(jws => promisify(testServer.post(revokePath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 403);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('blocks revocation by an unknown key', (done) => {
+    let certDER = cachedCrypto.certReq.cert;
+    let reason = 3;
+    let revokePath = '/revoke-cert';
+
+    let notThumbprint = 'not-thumbprint';
+    let cert = {
+      id:          notThumbprint,
+      thumbprint:  notThumbprint,
+      der:         certDER,
+      type:        function() { return 'cert'; },
+      marshal:     function() { return this.der; },
+      contentType: function() { return 'application/pkix-cert'; }
+    };
+    acmeServer.db.put(cert);
+
+    let revocationRequest = {
+      certificate: jose.base64url.encode(certDER),
+      reason:      reason
+    };
+    let url = acmeServer.baseURL + revokePath;
+    let nonce = acmeServer.transport.nonces.get();
+
+    mockClient.makeJWS(nonce, url, revocationRequest)
+      .then(jws => promisify(testServer.post(revokePath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 403);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('converts a non-integer reason code to zero', (done) => {
+    let certDER = cachedCrypto.certReq.cert;
+    let reason = 'no-reason';
+    let certPath;
+    let revokePath = '/revoke-cert';
+
+    mockClient.key()
+      .then(k => registerKey(k, acmeServer))
+      .then(thumbprint => {
+        let cert = {
+          id:          thumbprint,
+          thumbprint:  thumbprint,
+          der:         certDER,
+          type:        function() { return 'cert'; },
+          marshal:     function() { return this.der; },
+          contentType: function() { return 'application/pkix-cert'; }
+        };
+        acmeServer.db.put(cert);
+
+        certPath = `/cert/${cert.thumbprint}`;
+
+        let revocationRequest = {
+          certificate: jose.base64url.encode(certDER),
+          reason:      reason
+        };
+        let url = acmeServer.baseURL + revokePath;
+        let nonce = acmeServer.transport.nonces.get();
+        return mockClient.makeJWS(nonce, url, revocationRequest);
+      })
+      .then(jws => promisify(testServer.post(revokePath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 200);
+        return promisify(testServer.get(certPath));
+      })
+      .then(res => {
+        assert.equal(res.status, 200);
+        assert.property(res.headers, 'revocation-reason');
+        assert.equal(parseInt(res.headers['revocation-reason']), 0);
+        done();
+      })
+      .catch(done);
   });
 });

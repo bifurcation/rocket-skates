@@ -325,7 +325,7 @@ describe('PKI utilities module', () => {
     assert.deepEqual(names.sort(), cachedCrypto.certReq.names.sort());
   });
 
-  it('matches a key against a certificate', (done) => {
+  it('computes a key thumbprint from a certificate', (done) => {
     let spkiBytes = forge.asn1.toDer(forge.pki.publicKeyToAsn1(cachedCrypto.certReq.publicKey));
     let spki = new Buffer(forge.util.bytesToHex(spkiBytes), 'hex');
 
@@ -333,11 +333,11 @@ describe('PKI utilities module', () => {
     jose.JWK.asKey(spki, 'spki')
       .then(jwk => jwk.thumbprint())
       .then(tp => {
-        tpKey = tp;
+        tpKey = jose.util.base64url.encode(tp);
         return pki.certKeyThumbprint(cachedCrypto.certReq.cert);
       })
       .then(tpCert => {
-        assert.isTrue(tpKey.equals(tpCert));
+        assert.equal(tpKey, tpCert);
         done();
       })
       .catch(done);
