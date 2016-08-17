@@ -320,6 +320,29 @@ describe('PKI utilities module', () => {
   it('rejects a cert match with a bad public key', noMatch('badKey'));
   it('rejects a cert match with bad SANs',         noMatch('badSANs'));
 
+  it('extracts names from a certificate', () => {
+    let names = pki.certNames(cachedCrypto.certReq.cert);
+    assert.deepEqual(names.sort(), cachedCrypto.certReq.names.sort());
+  });
+
+  it('matches a key against a certificate', (done) => {
+    let spkiBytes = forge.asn1.toDer(forge.pki.publicKeyToAsn1(cachedCrypto.certReq.publicKey));
+    let spki = new Buffer(forge.util.bytesToHex(spkiBytes), 'hex');
+
+    let tpKey;
+    jose.JWK.asKey(spki, 'spki')
+      .then(jwk => jwk.thumbprint())
+      .then(tp => {
+        tpKey = tp;
+        return pki.certKeyThumbprint(cachedCrypto.certReq.cert);
+      })
+      .then(tpCert => {
+        assert.isTrue(tpKey.equals(tpCert));
+        done();
+      })
+      .catch(done);
+  });
+
   it('generates and caches keys', function(done) {
     this.timeout(15000);
 
