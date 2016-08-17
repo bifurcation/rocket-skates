@@ -11,7 +11,11 @@ const jose         = require('node-jose');
 const cachedCrypto = require('./tools/cached-crypto');
 const pki          = require('../lib/pki');
 
-let csrKeys = forge.pki.rsa.generateKeyPair(1024);
+let csrKeys = forge.pki.rsa.generateKeyPair({
+  bits:    1024,
+  e:       0x10001,
+  workers: -1
+});
 
 function generateCSR(options) {
   let csr = forge.pki.createCertificationRequest();

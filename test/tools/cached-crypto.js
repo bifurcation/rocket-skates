@@ -24,7 +24,11 @@ let notBefore = new Date();
 let notAfter = new Date(notBefore.getTime() + duration);
 let names = ['not-example.com', 'www.not-example.com'];
 
-let keys = forge.pki.rsa.generateKeyPair(1024);
+let keys = forge.pki.rsa.generateKeyPair({
+  bits:    1024,
+  e:       0x10001,
+  workers: -1
+});
 let issuer = [{ name: 'commonName', value: 'Happy Hacker Fake CA' }];
 let subject = [{ name: 'commonName', value: names[0] }];
 let altNames = names.map(name => { return { type: 2, value: name }; });
