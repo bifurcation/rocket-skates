@@ -11,7 +11,11 @@ const jose         = require('node-jose');
 const cachedCrypto = require('./tools/cached-crypto');
 const pki          = require('../lib/pki');
 
-let csrKeys = forge.pki.rsa.generateKeyPair(1024);
+let csrKeys = forge.pki.rsa.generateKeyPair({
+  bits:    1024,
+  e:       0x10001,
+  workers: -1
+});
 
 function generateCSR(options) {
   let csr = forge.pki.createCertificationRequest();
@@ -319,6 +323,29 @@ describe('PKI utilities module', () => {
   it('rejects a cert match with a bad subject',    noMatch('badSubject'));
   it('rejects a cert match with a bad public key', noMatch('badKey'));
   it('rejects a cert match with bad SANs',         noMatch('badSANs'));
+
+  it('extracts names from a certificate', () => {
+    let names = pki.certNames(cachedCrypto.certReq.cert);
+    assert.deepEqual(names.sort(), cachedCrypto.certReq.names.sort());
+  });
+
+  it('computes a key thumbprint from a certificate', (done) => {
+    let spkiBytes = forge.asn1.toDer(forge.pki.publicKeyToAsn1(cachedCrypto.certReq.publicKey));
+    let spki = new Buffer(forge.util.bytesToHex(spkiBytes), 'hex');
+
+    let tpKey;
+    jose.JWK.asKey(spki, 'spki')
+      .then(jwk => jwk.thumbprint())
+      .then(tp => {
+        tpKey = jose.util.base64url.encode(tp);
+        return pki.certKeyThumbprint(cachedCrypto.certReq.cert);
+      })
+      .then(tpCert => {
+        assert.equal(tpKey, tpCert);
+        done();
+      })
+      .catch(done);
+  });
 
   it('generates and caches keys', function(done) {
     this.timeout(15000);

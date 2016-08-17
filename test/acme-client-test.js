@@ -20,8 +20,9 @@ describe('ACME client', () => {
     'meta': {
       'terms-of-service': 'https://example.com/terms'
     },
-    'new-reg': 'https://example.com/new-reg',
-    'new-app': 'https://example.com/new-app'
+    'new-reg':     'https://example.com/new-reg',
+    'new-app':     'https://example.com/new-app',
+    'revoke-cert': 'https://example.com/revoke-cert'
   };
   let server = nock('https://example.com');
 
@@ -668,5 +669,74 @@ describe('ACME client', () => {
       ],
       combinations: [[0, 2], [1, 2]]
     }, 'No supported combinations');
+  });
+
+  it('performs a revocation', (done) => {
+    let cert = jose.base64url.encode(cachedCrypto.certReq.cert);
+    let reason = 52;
+
+    let gotRevokeCert = false;
+    server.get('/directory').reply(200, directory)
+          .head('/revoke-cert').reply(200, '', {'replay-nonce': 'foo'})
+          .post('/revoke-cert')
+          .reply((uri, jws, cb) => {
+            gotRevokeCert = true;
+            return jose.verify(jws)
+              .then(verified => {
+                assert.deepEqual(verified.payload, {
+                  certificate: cert,
+                  reason:      reason
+                });
+                cb(null, 200);
+              })
+              .catch(e => {
+                cb(null, [501, e.message]);
+              });
+          });
+
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.revokeCertificate(cert, reason)
+      .then(() => {
+        assert.isTrue(gotRevokeCert);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('rejects a revocation with a bad reason', (done) => {
+    let cert = jose.base64url.encode(cachedCrypto.certReq.cert);
+    let reason = 'not-an-integer';
+
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+
+    try {
+      client.revokeCertificate(cert, reason);
+      done(new Error('Revocation should reject a non-integer reason code'));
+    } catch (e) {
+      done();
+    }
+  });
+
+  it('fails if there is no revoke-cert endpoint', (done) => {
+    server.get('/directory').reply(200, {});
+
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.registrationURL = 'non-null';
+    client.revokeCertificate()
+      .then(() => { done(new Error('New-app succeeded when it should not have')); })
+      .catch(err => {
+        assert.equal(err.message, 'Server does not have a certificate revocation endpoint');
+        done();
+      })
+      .catch(done);
   });
 });

@@ -142,7 +142,7 @@ describe('ACME-level client/server integration', () => {
   };
 
   before(function(done) {
-    this.timeout(10000);
+    this.timeout(15000);
     localCA.keys()
       .then(() => { done(); })
       .catch(done);
@@ -194,12 +194,30 @@ describe('ACME-level client/server integration', () => {
     let contact = ['mailto:someone@example.com'];
     acmeClient.register(contact)
       .then(() => {
-        acmeClient.requestCertificate(cachedCrypto.certReq.csr,
-                                      cachedCrypto.certReq.notBefore,
-                                      cachedCrypto.certReq.notAfter)
-          .then(() => {
-            done();
-          });
+        return acmeClient.requestCertificate(cachedCrypto.certReq.csr,
+                                             cachedCrypto.certReq.notBefore,
+                                             cachedCrypto.certReq.notAfter);
+      })
+      .then(() => { done(); })
+      .catch(done);
+  });
+
+
+  it('revokes a certificate', (done) => {
+    let contact = ['mailto:someone@example.com'];
+    acmeClient.register(contact)
+      .then(() => {
+        return acmeClient.requestCertificate(cachedCrypto.certReq.csr,
+                                             cachedCrypto.certReq.notBefore,
+                                             cachedCrypto.certReq.notAfter);
+      })
+      .then(cert => {
+        let certB64url = jose.base64url.encode(cert);
+        return acmeClient.revokeCertificate(certB64url, 3);
+      })
+      .then(res => {
+        assert.equal(res.response.statusCode, 200);
+        done();
       })
       .catch(done);
   });
