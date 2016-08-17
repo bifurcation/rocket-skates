@@ -740,4 +740,56 @@ describe('ACME server', () => {
       })
       .catch(done);
   });
+
+  it('revokes a certificate when authorized by the account key', (done) => {
+    let certDER = cachedCrypto.certReq.cert;
+    let reason = 3;
+    let certPath;
+    let revokePath = '/revoke-cert';
+
+    mockClient.key()
+      .then(k => registerKey(k, acmeServer))
+      .then(thumbprint => {
+        let cert = {
+          id:          thumbprint,
+          thumbprint:  thumbprint,
+          der:         certDER,
+          type:        function() { return 'cert'; },
+          marshal:     function() { return this.der; },
+          contentType: function() { return 'application/pkix-cert'; }
+        };
+        acmeServer.db.put(cert);
+
+        certPath = `/cert/${thumbprint}`;
+
+        let revocationRequest = {
+          certificate: jose.base64url.encode(certDER),
+          reason:      reason
+        };
+        let url = acmeServer.baseURL + revokePath;
+        let nonce = acmeServer.transport.nonces.get();
+        return mockClient.makeJWS(nonce, url, revocationRequest);
+      })
+      .then(jws => promisify(testServer.post(revokePath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 200);
+        return promisify(testServer.get(certPath));
+      })
+      .then(res => {
+        assert.equal(res.status, 200);
+        assert.property(res.headers, 'revocation-reason');
+        done();
+      })
+      .catch(done);
+  });
+
+  it('revokes a certificate when authorized by another account key', () => {
+    // Provision reg
+    // Provision authz
+    // Provision cert
+  });
+
+  it('revokes a certificate when authorized by the certificate key', () => {
+    // Provision cert
+  });
 });
