@@ -15,6 +15,7 @@ const ACMEClient     = require('../lib/client/acme-client');
 
 describe('ACME client', () => {
   let accountKey;
+  let baseURL = 'https://example.com';
   let directoryURL = 'https://example.com/directory';
   let directory = {
     'meta': {
@@ -24,7 +25,7 @@ describe('ACME client', () => {
     'new-app':     'https://example.com/new-app',
     'revoke-cert': 'https://example.com/revoke-cert'
   };
-  let server = nock('https://example.com');
+  let server = nock(baseURL);
 
   before((done) => {
     cachedCrypto.key
@@ -301,6 +302,53 @@ describe('ACME client', () => {
               });
           });
     return testNewRegFail(done, 'User did not agree to terms', () => false);
+  });
+
+  it('deactivates an account', (done) => {
+    let regPath = '/reg/asdf';
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.registrationURL = baseURL + regPath;
+
+    let gotDeactivate = false;
+    server.head(regPath).reply(200, '', {'replay-nonce': 'foo'})
+          .post(regPath)
+          .reply((uri, jws, cb) => {
+            gotDeactivate = true;
+            return jose.verify(jws)
+              .then(verified => {
+                assert.deepEqual(verified.payload, {status: 'deactivated'});
+                cb(null, 200);
+              })
+              .catch(e => {
+                cb(null, [501, e.message]);
+              });
+          });
+
+    client.deactivateAccount()
+      .then(() => {
+        assert.isTrue(gotDeactivate);
+        assert.ok(!client.registrationURL);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('fails to deactivate when un-registered', (done) => {
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+
+    client.deactivateAccount()
+      .then(() => { done(new Error('Deactivation succeeded when it should not have')); })
+      .catch(err => {
+        assert.equal(err.message, 'Cannot deactivate a registration without registering');
+        done();
+      })
+      .catch(done);
   });
 
   it('requests a certificate', (done) => {
@@ -669,6 +717,62 @@ describe('ACME client', () => {
       ],
       combinations: [[0, 2], [1, 2]]
     }, 'No supported combinations');
+  });
+
+  it('deactivates an authorization', (done) => {
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    let authzPath = '/authz/asdf';
+    let authzURL = baseURL + authzPath;
+    let authz = {
+      identifier: { type: 'non-null', value: 'non-null' },
+      status:     'non-null',
+      challenges: [{ type: 'non-null', url: 'non-null' }]
+    };
+
+    let gotDeactivate = false;
+    server.get(authzPath).reply(200, authz)
+          .head(authzPath).reply(200, '', {'replay-nonce': 'foo'})
+          .post(authzPath)
+          .reply((uri, jws, cb) => {
+            gotDeactivate = true;
+            return jose.verify(jws)
+              .then(verified => {
+                assert.deepEqual(verified.payload, {status: 'deactivated'});
+                cb(null, 200);
+              })
+              .catch(e => {
+                cb(null, [501, e.message]);
+              });
+          });
+
+    client.deactivateAuthorization(authzURL)
+      .then(() => {
+        assert.isTrue(gotDeactivate);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('fails to deactivate if the URL is not an authz URL', (done) => {
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    let authzPath = '/authz/asdf';
+    let authzURL = baseURL + authzPath;
+
+    server.get(authzPath).reply(200, {});
+
+    client.deactivateAuthorization(authzURL)
+      .then(() => { done(new Error('Deactivation succeeded when it should not have')); })
+      .catch(err => {
+        assert.equal(err.message, 'URL to be deactivated must be an authorization URL');
+        done();
+      })
+      .catch(done);
   });
 
   it('performs a revocation', (done) => {

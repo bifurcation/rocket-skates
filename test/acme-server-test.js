@@ -270,6 +270,32 @@ describe('ACME server', () => {
       .catch(done);
   });
 
+  it('deactivates an account', (done) => {
+    let regPath;
+
+    mockClient.key()
+      .then(k => registerKey(k, acmeServer))
+      .then(thumbprint => {
+        regPath = `/reg/${thumbprint}`;
+        let nonce = acmeServer.transport.nonces.get();
+        let url = `${acmeServer.baseURL}${regPath}`;
+        return mockClient.makeJWS(nonce, url, {status: 'deactivated'});
+      })
+      .then(jws => promisify(request(httpsServer).post(regPath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 200);
+        let nonce = acmeServer.transport.nonces.get();
+        let url = `${acmeServer.baseURL}${regPath}`;
+        return mockClient.makeJWS(nonce, url, {});
+      })
+      .then(jws => promisify(request(httpsServer).post(regPath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 404);
+        done();
+      })
+      .catch(done);
+  });
+
   it('rejects a registration update to a non-existent registration', (done) => {
     let nonce = acmeServer.transport.nonces.get();
     let url = `${acmeServer.baseURL}/reg/non-existent`;
@@ -729,15 +755,105 @@ describe('ACME server', () => {
         };
         acmeServer.db.put(existing);
 
-        challPath = `authz/${thumbprint}/0`;
+        challPath = `/authz/${thumbprint}/0`;
 
         let nonce = acmeServer.transport.nonces.get();
-        let url = `${acmeServer.baseURL}/${challPath}`;
+        let url = `${acmeServer.baseURL}${challPath}`;
         return mockClient.makeJWS(nonce, url, {});
       })
-      .then(jws => promisify(testServer.post(`/${challPath}`).send(jws)))
+      .then(jws => promisify(testServer.post(challPath).send(jws)))
       .then(res => {
         assert.equal(res.status, 401);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('rejects an update to a finalized authz', (done) => {
+    let challPath;
+    mockClient.key()
+      .then(k => k.thumbprint())
+      .then(tpBuffer => {
+        let thumbprint = jose.base64url.encode(tpBuffer);
+        let existing = {
+          id:         thumbprint,
+          thumbprint: thumbprint,
+          status:     'invalid',
+          challenges: [null],
+          type:       function() { return 'authz'; },
+          marshal:    function() { return ''; }
+        };
+        acmeServer.db.put(existing);
+
+        challPath = `/authz/${thumbprint}/0`;
+
+        let nonce = acmeServer.transport.nonces.get();
+        let url = `${acmeServer.baseURL}${challPath}`;
+        return mockClient.makeJWS(nonce, url, {});
+      })
+      .then(jws => promisify(testServer.post(challPath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 403);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('rejects an update to a non-existent challenge', (done) => {
+    let challPath;
+    mockClient.key()
+      .then(k => k.thumbprint())
+      .then(tpBuffer => {
+        let thumbprint = jose.base64url.encode(tpBuffer);
+        let existing = {
+          id:         thumbprint,
+          thumbprint: thumbprint,
+          status:     'pending',
+          challenges: [null],
+          type:       function() { return 'authz'; }
+        };
+        acmeServer.db.put(existing);
+
+        challPath = `/authz/${thumbprint}/5`;
+
+        let nonce = acmeServer.transport.nonces.get();
+        let url = `${acmeServer.baseURL}${challPath}`;
+        return mockClient.makeJWS(nonce, url, {});
+      })
+      .then(jws => promisify(testServer.post(challPath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 404);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('deactivates an authorization', (done) => {
+    let authzPath;
+    mockClient.key()
+      .then(k => registerKey(k, acmeServer))
+      .then(thumbprint => {
+        let existing = {
+          id:          thumbprint,
+          thumbprint:  thumbprint,
+          challenges:  [null],
+          status:      'valid',
+          type:        function() { return 'authz'; },
+          contentType: function() { return 'application/json'; },
+          marshal:     function() { return { status: this.status }; }
+        };
+        acmeServer.db.put(existing);
+
+        authzPath = `/authz/${thumbprint}`;
+
+        let nonce = acmeServer.transport.nonces.get();
+        let url = `${acmeServer.baseURL}${authzPath}`;
+        return mockClient.makeJWS(nonce, url, {status: 'deactivated'});
+      })
+      .then(jws => promisify(testServer.post(`${authzPath}`).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 200);
+        assert.equal(res.body.status, 'deactivated');
         done();
       })
       .catch(done);
