@@ -185,6 +185,21 @@ describe('ACME-level client/server integration', () => {
         assert.deepEqual(response.body.key, acmeClient.client.accountKey.toJSON());
         assert.property(response.body, 'contact');
         assert.deepEqual(response.body.contact, contact);
+
+        assert.ok(acmeClient.registrationURL);
+        assert.lengthOf(Object.keys(acmeServer.db.store['reg']), 1);
+
+        done();
+      })
+      .catch(done);
+  });
+
+  it('deactivates an account', (done) => {
+    let contact = ['mailto:someone@example.com'];
+    acmeClient.register(contact)
+      .then(() => { return acmeClient.deactivateAccount(); })
+      .then(() => {
+        assert.ok(!acmeClient.registrationURL);
         done();
       })
       .catch(done);
@@ -198,10 +213,42 @@ describe('ACME-level client/server integration', () => {
                                              cachedCrypto.certReq.notBefore,
                                              cachedCrypto.certReq.notAfter);
       })
-      .then(() => { done(); })
+      .then(cert => {
+        pki.checkCertMatch(cert, cachedCrypto.certReq.csr,
+                                 cachedCrypto.certReq.notBefore,
+                                 cachedCrypto.certReq.notAfter);
+
+        let clientAuthz = Object.keys(acmeClient.authorizationURLs).length;
+        let serverAuthz = Object.keys(acmeServer.db.store['authz']).length;
+        assert.equal(clientAuthz, serverAuthz);
+
+        done();
+      })
       .catch(done);
   });
 
+  it('deactivates an authorization', (done) => {
+    let contact = ['mailto:someone@example.com'];
+    acmeClient.register(contact)
+      .then(() => {
+        return acmeClient.requestCertificate(cachedCrypto.certReq.csr,
+                                             cachedCrypto.certReq.notBefore,
+                                             cachedCrypto.certReq.notAfter);
+      })
+      .then(() => {
+        let authzURL;
+        for (let name in acmeClient.authorizationURLs) {
+          if (acmeClient.authorizationURLs.hasOwnProperty(name)) {
+            authzURL = acmeClient.authorizationURLs[name];
+            break;
+          }
+        }
+        assert.ok(authzURL);
+        return acmeClient.deactivateAuthorization(authzURL);
+      })
+      .then(() => { done(); })
+      .catch(done);
+  });
 
   it('revokes a certificate', (done) => {
     let contact = ['mailto:someone@example.com'];
