@@ -43,11 +43,12 @@ function registerKey(key, server) {
     .then(tpBuffer => {
       thumbprint = jose.base64url.encode(tpBuffer);
       let existing = {
-        id:      thumbprint,
-        key:     mockClient._key,
-        contact: ['mailto:anonymous@example.com'],
-        type:    function() { return 'reg'; },
-        marshal: function() {
+        id:         thumbprint,
+        thumbprint: thumbprint,
+        key:        mockClient._key,
+        contact:    ['mailto:anonymous@example.com'],
+        type:       function() { return 'reg'; },
+        marshal:    function() {
           return {
             key:       this.key.toJSON(),
             status:    this.status,
@@ -223,8 +224,8 @@ describe('ACME server', () => {
       })
       .then(tpBuffer => {
         let existing = {
-          id:   jose.base64url.encode(tpBuffer),
-          type: function() { return 'reg'; }
+          thumbprint: jose.base64url.encode(tpBuffer),
+          type:       function() { return 'reg'; }
         };
         acmeServer.db.put(existing);
 
@@ -612,7 +613,9 @@ describe('ACME server', () => {
                 });
               })
               .then(jws =>  promisify(testServer.post(challPath).send(jws)))
-              .then(challRes => assert.equal(challRes.status, 200))
+              .then(challRes => {
+                assert.equal(challRes.status, 200);
+              })
               .then(() => promisify(testServer.get(authzPath)))
               .then(authzRes => {
                 assert.equal(authzRes.status, 200);
@@ -685,10 +688,10 @@ describe('ACME server', () => {
     };
 
     let bogusApp = {
-      id:         'not-your-thumbprint',
-      thumbprint: 'not-your-thumbprint',
-      type:       function() { return 'app'; },
-      touched:    false,
+      id:      'not-your-id',
+      regID:   'not-your-id',
+      type:    function() { return 'app'; },
+      touched: false,
 
       get challenges() {
         this.touched = true;
@@ -744,12 +747,11 @@ describe('ACME server', () => {
   it('rejects an update to an authz by the wrong key', (done) => {
     let challPath;
     cachedCrypto.key
-      .then(k => k.thumbprint())
-      .then(tpBuffer => {
-        let thumbprint = jose.base64url.encode(tpBuffer);
+      .then(k => registerKey(k, acmeServer))
+      .then(thumbprint => {
         let existing = {
           id:         thumbprint,
-          thumbprint: thumbprint,
+          regID:      thumbprint,
           challenges: [null],
           type:       function() { return 'authz'; }
         };
@@ -772,12 +774,11 @@ describe('ACME server', () => {
   it('rejects an update to a finalized authz', (done) => {
     let challPath;
     mockClient.key()
-      .then(k => k.thumbprint())
-      .then(tpBuffer => {
-        let thumbprint = jose.base64url.encode(tpBuffer);
+      .then(k => registerKey(k, acmeServer))
+      .then(thumbprint => {
         let existing = {
           id:         thumbprint,
-          thumbprint: thumbprint,
+          regID:      thumbprint,
           status:     'invalid',
           challenges: [null],
           type:       function() { return 'authz'; },
@@ -802,12 +803,11 @@ describe('ACME server', () => {
   it('rejects an update to a non-existent challenge', (done) => {
     let challPath;
     mockClient.key()
-      .then(k => k.thumbprint())
-      .then(tpBuffer => {
-        let thumbprint = jose.base64url.encode(tpBuffer);
+      .then(k => registerKey(k, acmeServer))
+      .then(thumbprint => {
         let existing = {
           id:         thumbprint,
-          thumbprint: thumbprint,
+          regID:      thumbprint,
           status:     'pending',
           challenges: [null],
           type:       function() { return 'authz'; }
@@ -835,7 +835,7 @@ describe('ACME server', () => {
       .then(thumbprint => {
         let existing = {
           id:          thumbprint,
-          thumbprint:  thumbprint,
+          regID:       thumbprint,
           challenges:  [null],
           status:      'valid',
           type:        function() { return 'authz'; },
@@ -870,7 +870,7 @@ describe('ACME server', () => {
       .then(thumbprint => {
         let cert = {
           id:          thumbprint,
-          thumbprint:  thumbprint,
+          regID:       thumbprint,
           der:         certDER,
           type:        function() { return 'cert'; },
           marshal:     function() { return this.der; },
@@ -878,7 +878,7 @@ describe('ACME server', () => {
         };
         acmeServer.db.put(cert);
 
-        certPath = `/cert/${cert.thumbprint}`;
+        certPath = `/cert/${cert.id}`;
 
         let revocationRequest = {
           certificate: jose.base64url.encode(certDER),
@@ -915,7 +915,7 @@ describe('ACME server', () => {
         cachedCrypto.certReq.names.map(name => {
           acmeServer.db.put({
             id:         thumbprint + name,
-            thumbprint: thumbprint,
+            regID:      thumbprint,
             identifier: { type: 'dns', value: name },
             type:       function() { return 'authz'; }
           });
@@ -1045,7 +1045,7 @@ describe('ACME server', () => {
       .then(thumbprint => {
         let cert = {
           id:          thumbprint,
-          thumbprint:  thumbprint,
+          regID:       thumbprint,
           der:         certDER,
           type:        function() { return 'cert'; },
           marshal:     function() { return this.der; },
@@ -1053,7 +1053,7 @@ describe('ACME server', () => {
         };
         acmeServer.db.put(cert);
 
-        certPath = `/cert/${cert.thumbprint}`;
+        certPath = `/cert/${cert.id}`;
 
         let revocationRequest = {
           certificate: jose.base64url.encode(certDER),
