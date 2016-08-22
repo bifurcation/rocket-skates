@@ -21,6 +21,7 @@ const ACMEServer    = require('../lib/server/acme-server');
 
 let localCA = new pki.CA();
 let mockClient = new MockClient();
+let mockClient2 = new MockClient();
 
 const serverConfig = {
   host:               '127.0.0.1',
@@ -45,7 +46,7 @@ function registerKey(key, server) {
       let existing = {
         id:         thumbprint,
         thumbprint: thumbprint,
-        key:        mockClient._key,
+        key:        key,
         contact:    ['mailto:anonymous@example.com'],
         type:       function() { return 'reg'; },
         marshal:    function() {
@@ -57,6 +58,7 @@ function registerKey(key, server) {
           };
         }
       };
+      existing.url = server.makeURL(existing);
       server.db.put(existing);
       return thumbprint;
     });
@@ -70,6 +72,8 @@ describe('ACME server', () => {
   before(function(done) {
     this.timeout(15000);
     localCA.keys()
+      .then(() => { mockClient.key(); })
+      .then(() => { mockClient2.key(); })
       .then(() => { done(); })
       .catch(done);
   });
@@ -858,6 +862,136 @@ describe('ACME server', () => {
       })
       .catch(done);
   });
+
+  it('changes the key for an account', (done) => {
+    let oldKey;
+    let oldKeyThumbprint;
+    let newKey;
+    let newKeyThumbprint;
+    let regPath;
+    let regURL;
+
+    let keyChangeURL = `${acmeServer.baseURL}/key-change`;
+
+    mockClient2.key()
+      .then(k => {
+        oldKey = k;
+        return registerKey(k, acmeServer);
+      })
+      .then(thumbprint => {
+        oldKeyThumbprint = thumbprint;
+        return mockClient.key();
+      })
+      .then(k => {
+        newKey = k;
+        return newKey.thumbprint();
+      })
+      .then(tpBuf => {
+        newKeyThumbprint = jose.base64url.encode(tpBuf);
+
+        regPath = `/reg/${oldKeyThumbprint}`;
+        regURL = `${acmeServer.baseURL}${regPath}`;
+        let keyChangeRequest = {
+          account: regURL,
+          oldKey:  oldKeyThumbprint,
+          newKey:  newKeyThumbprint
+        };
+        let header = {
+          url:   keyChangeURL,
+          nonce: 'ignored'
+        };
+
+        return jose.sign(oldKey, keyChangeRequest, header);
+      })
+      .then(innerJWS => {
+        let nonce = acmeServer.transport.nonces.get();
+        return mockClient.makeJWS(nonce, keyChangeURL, innerJWS);
+      })
+      .then(outerJWS => promisify(testServer.post('/key-change').send(outerJWS)))
+      .then(res => {
+        assert.equal(res.status, 200);
+
+        let nonce = acmeServer.transport.nonces.get();
+        return mockClient.makeJWS(nonce, regURL, {});
+      })
+      .then(jws => promisify(testServer.post(regPath).send(jws)))
+      .then(res => {
+        assert.equal(res.status, 200);
+        assert.deepEqual(res.body.key, newKey.toJSON());
+        done();
+      })
+      .catch(done);
+  });
+
+  // testCase in ['unregistered', 'badURL', 'badOldKey', 'badNewKey', 'badReg']
+  function keyChangeError(testCase) {
+    return (done) => {
+      let oldKey;
+      let oldKeyThumbprint;
+      let newKey;
+      let newKeyThumbprint;
+      let regPath;
+      let regURL;
+
+      let keyChangeURL = `${acmeServer.baseURL}/key-change`;
+
+      mockClient2.key()
+        .then(k => {
+          oldKey = k;
+          if (testCase === 'unregistered') {
+            return oldKey.thumbprint();
+          }
+
+          return registerKey(k, acmeServer);
+        })
+        .then(thumbprint => {
+          oldKeyThumbprint = thumbprint;
+          return mockClient.key();
+        })
+        .then(k => {
+          newKey = k;
+          return newKey.thumbprint();
+        })
+        .then(tpBuf => {
+          newKeyThumbprint = jose.base64url.encode(tpBuf);
+
+          let urlVal = (testCase === 'badURL')? 'bogus' : keyChangeURL;
+          let oldKeyVal = (testCase === 'badOldKey')? 'bogus' : oldKeyThumbprint;
+          let newKeyVal = (testCase === 'badNewKey')? 'bogus' : newKeyThumbprint;
+          let regVal = (testCase === 'badReg')? 'bogus' : regURL;
+
+          regPath = `/reg/${oldKeyThumbprint}`;
+          regURL = `${acmeServer.baseURL}${regPath}`;
+          let keyChangeRequest = {
+            account: regVal,
+            oldKey:  oldKeyVal,
+            newKey:  newKeyVal
+          };
+          let header = {
+            url:   urlVal,
+            nonce: 'ignored'
+          };
+
+          return jose.sign(oldKey, keyChangeRequest, header);
+        })
+        .then(innerJWS => {
+          let nonce = acmeServer.transport.nonces.get();
+          return mockClient.makeJWS(nonce, keyChangeURL, innerJWS);
+        })
+        .then(outerJWS => promisify(testServer.post('/key-change').send(outerJWS)))
+        .then(res => {
+          assert.equal(res.status, 403);
+          done();
+        })
+        .catch(done);
+    };
+  }
+
+  it('rejects a key-change request when the old key is unrecognized', keyChangeError('unregistered'));
+  it('rejects a key-change request when "url" field is bad',          keyChangeError('badURL'));
+  it('rejects a key-change request when "oldKey" field is bad',       keyChangeError('badOldKey'));
+  it('rejects a key-change request when "newKey" field is bad',       keyChangeError('badNewKey'));
+  it('rejects a key-change request when "account" field is bad',      keyChangeError('badReg'));
 
   it('revokes a certificate when authorized by the account key', (done) => {
     let certDER = cachedCrypto.certReq.cert;
