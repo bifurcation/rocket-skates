@@ -363,6 +363,40 @@ describe('ACME client', () => {
       .catch(done);
   });
 
+  it('fails key change if there is no registration URL', (done) => {
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.changeKey()
+      .then(() => { done(new Error('key change succeeded when it should not have')); })
+      .catch(() => { done(); });
+  });
+
+  it('fails key change if there is no new key', (done) => {
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.registrationURL = 'truthy';
+    client.changeKey()
+      .then(() => { done(new Error('key change succeeded when it should not have')); })
+      .catch(() => { done(); });
+  });
+
+  it('fails key change if there is no key-change endpoint', (done) => {
+    server.get('/directory').reply(200, {});
+
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.registrationURL = 'truthy';
+    client.changeKey('truthy')
+      .then(() => { done(new Error('key change succeeded when it should not have')); })
+      .catch(() => { done(); });
+  });
+
   it('deactivates an account', (done) => {
     let regPath = '/reg/asdf';
     let client = new ACMEClient({

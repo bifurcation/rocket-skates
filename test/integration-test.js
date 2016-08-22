@@ -194,6 +194,15 @@ describe('ACME-level client/server integration', () => {
       .catch(done);
   });
 
+  it('changes the key on an account', (done) => {
+    let contact = ['mailto:someone@example.com'];
+    acmeClient.register(contact)
+      .then(() => jose.newkey())
+      .then(newKey => { return acmeClient.changeKey(newKey); })
+      .then(() => { done(); })
+      .catch(done);
+  });
+
   it('deactivates an account', (done) => {
     let contact = ['mailto:someone@example.com'];
     acmeClient.register(contact)
