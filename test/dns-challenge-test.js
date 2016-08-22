@@ -67,6 +67,7 @@ describe('dns-01 challenge', () => {
       .then(() => {
         assert.isTrue(gotRequest);
         assert.equal(challenge.status, 'valid');
+        assert.property(challenge, 'validated');
         done();
       })
       .catch(done);

@@ -69,6 +69,7 @@ describe('tls-sni-02 challenge', () => {
       .then(() => {
         assert.isTrue(server.gotRequest);
         assert.equal(challenge.status, 'valid');
+        assert.property(challenge, 'validated');
       })
       .catch(err => { error = err; })
       .then(() => {
