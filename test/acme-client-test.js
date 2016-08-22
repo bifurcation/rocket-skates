@@ -15,6 +15,7 @@ const ACMEClient     = require('../lib/client/acme-client');
 
 describe('ACME client', () => {
   let accountKey;
+  let accountKeyThumbprint;
   let baseURL = 'https://example.com';
   let directoryURL = 'https://example.com/directory';
   let directory = {
@@ -23,13 +24,21 @@ describe('ACME client', () => {
     },
     'new-reg':     'https://example.com/new-reg',
     'new-app':     'https://example.com/new-app',
-    'revoke-cert': 'https://example.com/revoke-cert'
+    'revoke-cert': 'https://example.com/revoke-cert',
+    'key-change':  'https://example.com/key-change'
   };
   let server = nock(baseURL);
 
   before((done) => {
     cachedCrypto.key
-      .then(k => { accountKey = k; done(); })
+      .then(k => {
+        accountKey = k;
+        return k.thumbprint();
+      })
+      .then(tpBuf => {
+        accountKeyThumbprint = jose.base64url.encode(tpBuf);
+        done();
+      })
       .catch(done);
   });
 
@@ -302,6 +311,90 @@ describe('ACME client', () => {
               });
           });
     return testNewRegFail(done, 'User did not agree to terms', () => false);
+  });
+
+  it('changes account key', (done) => {
+    let regPath = '/reg/asdf';
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.registrationURL = baseURL + regPath;
+
+    let newKey;
+    let newKeyThumbprint;
+    let outerURL;
+    let gotKeyChange = false;
+    server.get('/directory').reply(200, directory)
+          .head('/key-change').reply(200, '', {'replay-nonce': 'foo'})
+          .post('/key-change')
+          .reply((uri, jws, cb) => {
+            gotKeyChange = true;
+            return jose.verify(jws)
+              .then(verified => {
+                outerURL = verified.header.url;
+                return jose.verify(verified.payload);
+              })
+              .then(verified => {
+                assert.equal(verified.header.url, outerURL);
+                assert.propertyVal(verified.payload, 'account', client.registrationURL);
+                assert.propertyVal(verified.payload, 'oldKey', accountKeyThumbprint);
+                assert.propertyVal(verified.payload, 'newKey', newKeyThumbprint);
+                cb(null, 200);
+              })
+              .catch(e => {
+                cb(null, [501, e.message]);
+              });
+          });
+
+    jose.newkey()
+      .then(k => {
+        newKey = k;
+        return newKey.thumbprint();
+      })
+      .then(tpBuf => {
+        newKeyThumbprint = jose.base64url.encode(tpBuf);
+        return client.changeKey(newKey);
+      })
+      .then(() => {
+        assert.isTrue(gotKeyChange);
+        done();
+      })
+      .catch(done);
+  });
+
+  it('fails key change if there is no registration URL', (done) => {
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.changeKey()
+      .then(() => { done(new Error('key change succeeded when it should not have')); })
+      .catch(() => { done(); });
+  });
+
+  it('fails key change if there is no new key', (done) => {
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.registrationURL = 'truthy';
+    client.changeKey()
+      .then(() => { done(new Error('key change succeeded when it should not have')); })
+      .catch(() => { done(); });
+  });
+
+  it('fails key change if there is no key-change endpoint', (done) => {
+    server.get('/directory').reply(200, {});
+
+    let client = new ACMEClient({
+      accountKey:   accountKey,
+      directoryURL: directoryURL
+    });
+    client.registrationURL = 'truthy';
+    client.changeKey('truthy')
+      .then(() => { done(new Error('key change succeeded when it should not have')); })
+      .catch(() => { done(); });
   });
 
   it('deactivates an account', (done) => {
