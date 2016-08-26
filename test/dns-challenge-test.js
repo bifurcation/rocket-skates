@@ -6,6 +6,7 @@
 'use strict';
 
 const assert         = require('chai').assert;
+const Promise        = require('bluebird');
 const dns            = require('native-dns-multisocket');
 const DNS01Challenge = require('../lib/server/dns-challenge.js');
 
@@ -17,33 +18,30 @@ const port = 5300;
 DNS01Challenge.resolver = '127.0.0.1';
 DNS01Challenge.port = port;
 
-let record;
-let gotRequest = false;
-let server = dns.createServer();
-
-server.on('request', (request, response) => {
-  gotRequest = true;
-
-  if (request.question.length === 0) {
-    response.header.rcode = dns.consts.NAME_TO_RCODE.FORMERR;
-  } else if ((request.question[0].class !== dns.consts.NAME_TO_QCLASS.IN) ||
-      (request.question[0].type !== dns.consts.NAME_TO_QTYPE.TXT) ||
-      (request.question[0].name !== authName)) {
-    response.header.rcode = dns.consts.NAME_TO_RCODE.NOTFOUND;
-  } else {
-    response.answer.push(record);
-  }
-
-  response.send();
-});
-
-
 describe('dns-01 challenge', () => {
-  before(() => {
+  let gotRequest;
+  let server;
+  let record;
+  let delay = 10;
+
+  beforeEach(() => {
+    gotRequest = false;
+
+    server = dns.createTCPServer();
+    server.on('request', (request, response) => {
+      gotRequest = true;
+
+      Promise.delay(delay).then(() => {
+        response.answer.push(record);
+        response.send();
+      })
+        // If the client hangs up we can get an error; ignore it
+        .catch(() => {});
+    });
     server.serve(port);
   });
 
-  after((done) => {
+  afterEach((done) => {
     server.on('close', () => { done(); });
     server.close();
   });
@@ -57,7 +55,6 @@ describe('dns-01 challenge', () => {
       data: [challenge._keyAuthorizationHash],
       ttl:  600
     });
-    gotRequest = false;
 
     let response = {
       type:             DNS01Challenge.type,
@@ -112,7 +109,6 @@ describe('dns-01 challenge', () => {
       data: [challenge._keyAuthorizationHash + '-not'],
       ttl:  600
     });
-    gotRequest = false;
 
     let response = {
       type:             DNS01Challenge.type,
@@ -128,11 +124,12 @@ describe('dns-01 challenge', () => {
   });
 
   it('invalidates on timeout', done => {
-    let originalResolver = DNS01Challenge.resolver;
-    DNS01Challenge.resolver = 'auto';
-
     let challenge = new DNS01Challenge(name, thumbprint);
     assert.equal(challenge.status, 'pending');
+
+    let originalTimeout = 100;
+    DNS01Challenge.timeout = 100;
+    delay = 200;
 
     let response = {
       type:             DNS01Challenge.type,
@@ -140,13 +137,13 @@ describe('dns-01 challenge', () => {
     };
     challenge.update(response)
       .then(() => {
+        DNS01Challenge.timeout = originalTimeout;
         assert.isTrue(gotRequest);
         assert.equal(challenge.status, 'invalid');
-        DNS01Challenge.resolver = originalResolver;
         done();
       })
       .catch(err => {
-        DNS01Challenge.resolver = originalResolver;
+        DNS01Challenge.timeout = originalTimeout;
         done(err);
       });
   });
