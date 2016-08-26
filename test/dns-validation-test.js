@@ -6,7 +6,7 @@
 'use strict';
 
 const assert          = require('chai').assert;
-const dns             = require('native-dns');
+const dns             = require('native-dns-multisocket');
 const Promise         = require('bluebird');
 const crypto          = require('crypto');
 const cachedCrypto    = require('./tools/cached-crypto');
@@ -64,7 +64,8 @@ describe('dns-01 validation', () => {
       question: dns.Question({name: authName, type: 'TXT'}),
       server:   {
         address: DNS01Validation.resolver,
-        port:    DNS01Validation.port
+        port:    DNS01Validation.port,
+        type:    'tcp'
       },
       timeout: 2000
     });
@@ -123,7 +124,8 @@ describe('dns-01 validation', () => {
       question: dns.Question({name: 'anonymous.invalid', type: 'TXT'}),
       server:   {
         address: DNS01Validation.resolver,
-        port:    DNS01Validation.port
+        port:    DNS01Validation.port,
+        type:    'tcp'
       },
       timeout: 2000
     });

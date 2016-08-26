@@ -39,7 +39,7 @@
     "commander": "^2.9.0",
     "deep-equal": "^1.0.1",
     "express": "^4.13",
-    "native-dns": "^0.7.0",
+    "native-dns-multisocket": "latest",
     "node-forge": "^0.6.41",
     "node-jose": "^0.8",
     "node-uuid": "^1.4.7",
