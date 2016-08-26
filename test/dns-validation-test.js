@@ -6,7 +6,7 @@
 'use strict';
 
 const assert          = require('chai').assert;
-const dns             = require('native-dns');
+const dns             = require('native-dns-multisocket');
 const Promise         = require('bluebird');
 const crypto          = require('crypto');
 const cachedCrypto    = require('./tools/cached-crypto');

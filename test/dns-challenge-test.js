@@ -6,7 +6,7 @@
 'use strict';
 
 const assert         = require('chai').assert;
-const dns            = require('native-dns');
+const dns            = require('native-dns-multisocket');
 const DNS01Challenge = require('../lib/server/dns-challenge.js');
 
 const thumbprint = 'p3wl28h-9g3g1r6eIGORS5usGW79TUjL6fo_T5xRhAQ';
