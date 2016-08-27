@@ -110,3 +110,18 @@ interface Challenge {
 }
 ```
 
+Out-of-band requirements are specified by providing a handler function that
+takes `express` request and response objects and returns a promise that resolves
+to a boolean reflecting whether the requirement has been satisfied or not.  So
+if you want an out-of-band requirement that simply requires someone to load a
+  URL, you could do the following:
+
+```
+oobHandler = (req, res) => {
+  res.end();
+  return Promise.resolve(true);
+};
+```
+
+Note that the promises returned by OOB handlers must be `bluebird` promises,
+because the OOB code takes advantage of `.finally()`.
