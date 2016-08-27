@@ -5,19 +5,20 @@
 
 'use strict';
 
-const assert        = require('chai').assert;
-const request       = require('supertest');
-const urlParse      = require('url').parse;
-const https         = require('https');
-const forge         = require('node-forge');
-const nodeJose      = require('node-jose');
-const MockClient    = require('./tools/mock-client');
-const AutoChallenge = require('./tools/auto-challenge');
-const promisify     = require('./tools/promisify');
-const cachedCrypto  = require('./tools/cached-crypto');
-const jose          = require('../lib/jose');
-const pki           = require('../lib/pki');
-const ACMEServer    = require('../lib/server/acme-server');
+const assert              = require('chai').assert;
+const request             = require('supertest');
+const urlParse            = require('url').parse;
+const https               = require('https');
+const forge               = require('node-forge');
+const nodeJose            = require('node-jose');
+const Promise             = require('bluebird');
+const MockClient          = require('./tools/mock-client');
+const AutoChallenge       = require('./tools/auto-challenge');
+const promisify           = require('./tools/promisify');
+const cachedCrypto        = require('./tools/cached-crypto');
+const jose                = require('../lib/jose');
+const pki                 = require('../lib/pki');
+const ACMEServer          = require('../lib/server/acme-server');
 
 let localCA = new pki.CA();
 let mockClient = new MockClient();
@@ -28,7 +29,11 @@ const serverConfig = {
   port:               443, // NB: This is a lie
   authzExpirySeconds: 30 * 24 * 3600,
   challengeTypes:     [AutoChallenge],
-  CA:                 localCA
+  oobHandlers:        [(req, res) => {
+    res.end();
+    return Promise.resolve(true);
+  }],
+  CA: localCA
 };
 const port = 4430;
 
@@ -394,20 +399,37 @@ describe('ACME server', () => {
         assert.isArray(res.body.requirements);
         assert.isTrue(res.body.requirements.length > 0);
 
+        let gotAuthz = false;
+        let gotOOB = false;
         let authz = res.body.requirements.map(req => {
-          if (req.type !== 'authorization') {
-            return Promise.resolve(false);
+          if (req.type === 'authorization') {
+            gotAuthz = true;
+            let authzPath = path(req.url);
+            return promisify(testServer.get(authzPath));
           }
-          let authzPath = path(req.url);
-          return promisify(testServer.get(authzPath));
+
+          if (req.type === 'out-of-band') {
+            gotOOB = true;
+            let oobPath = path(req.url);
+            return promisify(testServer.get(oobPath))
+              .then(oobRes => {
+                assert.equal(oobRes.status, 200);
+              });
+          }
+
+          let err = new Error('Unknown requirement type: ' + req.type);
+          return Promise.reject(err);
         });
+
+        assert.isTrue(gotAuthz);
+        assert.isTrue(gotOOB);
         return Promise.all(authz);
       })
       .then(responses => {
         let challengeTests = [];
         let authzNames = [];
         responses.map(res => {
-          if (res == null) {
+          if (!res) {
             return;
           }
           assert.equal(res.status, 200);
@@ -448,6 +470,58 @@ describe('ACME server', () => {
         return Promise.all(challengeTests);
       })
       .then(() => { done(); })
+      .catch(done);
+  });
+
+  it('invalidates OOB requirements', (done) => {
+    let app = {
+      'csr':       cachedCrypto.certReq.csr,
+      'notBefore': cachedCrypto.certReq.notBefore,
+      'notAfter':  cachedCrypto.certReq.notAfter
+    };
+
+    acmeServer.oobHandlers = [(req, res) => {
+      res.end();
+      return Promise.reject(new Error());
+    }];
+
+    let appPath;
+    mockClient.key()
+      .then(k => registerKey(k, acmeServer))
+      .then(() => {
+        let nonce = acmeServer.transport.nonces.get();
+        let url = acmeServer.baseURL + '/new-app';
+        return mockClient.makeJWS(nonce, url, app);
+      })
+      .then(jws => promisify(testServer.post('/new-app').send(jws)))
+      .then(res => {
+        assert.equal(res.status, 201);
+
+        appPath = path(res.headers.location);
+
+        let gets = [];
+        res.body.requirements.map(req => {
+          if (req.type !== 'out-of-band') {
+            return;
+          }
+
+          let oobPath = path(req.url);
+          gets.push(promisify(testServer.get(oobPath)));
+        });
+
+        return Promise.all(gets);
+      })
+      .then(() => { return promisify(testServer.get(appPath)); })
+      .then(res => {
+        assert.equal(res.status, 200);
+
+        res.body.requirements.map(req => {
+          if (req.type === 'out-of-band') {
+            assert.equal(req.status, 'invalid');
+          }
+        });
+        done();
+      })
       .catch(done);
   });
 
@@ -625,6 +699,12 @@ describe('ACME server', () => {
                 assert.equal(authzRes.status, 200);
                 assert.equal(authzRes.body.status, 'valid');
               });
+          });
+
+        res.body.requirements.filter(x => (x.type === 'out-of-band'))
+          .map(req => {
+            let oobPath = path(req.url);
+            validations.push(promisify(testServer.get(oobPath)));
           });
 
         return Promise.all(validations);
