@@ -104,7 +104,7 @@ function findTagsInJS(dir) {
                 tag: tag,
                 file: file,
                 path: fileNames[i],
-                line: lineNo
+                line: lineNo + 1 // lines are indexed from 1
               });
             }
           });
