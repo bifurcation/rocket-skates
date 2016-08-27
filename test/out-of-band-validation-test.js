@@ -25,7 +25,7 @@ describe('oob-01 validation', () => {
   it('fulfills an oob-01 challenge', (done) => {
     let port = 8888;
     let path = '/oob';
-    let challenge = {url: `http://localhost:${port}${path}`};
+    let challenge = {href: `http://localhost:${port}${path}`};
 
     let gotRequest = false;
     let app = express();
