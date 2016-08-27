@@ -462,6 +462,10 @@ describe('ACME client', () => {
         type:   'authorization',
         status: 'pending',
         url:    'https://example.com/authz/asdf'
+      }, {
+        type:   'out-of-band',
+        status: 'pending',
+        url:    'https://example.com/oob/asdf'
       }]
     };
     let newAppHeaders = {
@@ -489,6 +493,7 @@ describe('ACME client', () => {
     let gotNewApp = false;
     let gotAuthzFetch = false;
     let gotChallengePOST = false;
+    let gotOOBFetch = false;
     server.get('/directory').reply(200, directory)
           .head('/new-app').reply(200, '', {'replay-nonce': 'foo'})
           .post('/new-app')
@@ -518,6 +523,10 @@ describe('ACME client', () => {
                 cb(null, [501, e.message]);
               });
           })
+          .get('/oob/asdf').reply((uri, body, cb) => {
+            gotOOBFetch = true;
+            cb(null, [200, '']);
+          })
           .get('/app/asdf').reply(200, app)
           .get('/app/asdf').reply(200, app)
           .get('/app/asdf').reply(200, completed)
@@ -528,6 +537,7 @@ describe('ACME client', () => {
       directoryURL:    directoryURL,
       validationTypes: [AutoValidation]
     });
+    client.headless = true;
     client.registrationURL = 'non-null';
     client.requestCertificate(cachedCrypto.certReq.csr,
                               cachedCrypto.certReq.notBefore,
@@ -536,6 +546,7 @@ describe('ACME client', () => {
         assert.isTrue(gotNewApp);
         assert.isTrue(gotAuthzFetch);
         assert.isTrue(gotChallengePOST);
+        assert.isTrue(gotOOBFetch);
         assert.isTrue(cachedCrypto.certReq.cert.equals(cert));
         done();
       })
