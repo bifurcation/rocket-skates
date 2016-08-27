@@ -44,6 +44,7 @@
     "node-jose": "^0.8",
     "node-uuid": "^1.4.7",
     "npmlog": "^2.0",
+    "open": "0.0.5",
     "parse-link-header": "^0.4.1",
     "request-debug": "^0.2",
     "request-promise": "https://github.com/hildjj/request-promise.git#cls-depend"
