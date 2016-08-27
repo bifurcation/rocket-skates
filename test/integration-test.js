@@ -7,6 +7,7 @@
 
 const assert              = require('chai').assert;
 const https               = require('https');
+const Promise             = require('bluebird');
 const cachedCrypto        = require('./tools/cached-crypto');
 const AutoChallenge       = require('./tools/auto-challenge');
 const AutoValidation      = require('./tools/auto-validation');
@@ -137,6 +138,7 @@ describe('ACME-level client/server integration', () => {
     host:           '127.0.0.1',
     port:           port,
     challengeTypes: [AutoChallenge],
+    oobHandlers:    [(req, res) => { res.end(); return Promise.resolve(true); }],
     CA:             localCA
   };
   const acmeClientConfig = {
@@ -158,6 +160,7 @@ describe('ACME-level client/server integration', () => {
       .then(k => {
         acmeClientConfig.accountKey = k;
         acmeClient = new ACMEClient(acmeClientConfig);
+        acmeClient.headless = true;
         return cachedCrypto.tlsConfig;
       })
       .then(config => {
