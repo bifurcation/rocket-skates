@@ -5,23 +5,25 @@
 
 'use strict';
 
-const assert             = require('chai').assert;
-const https              = require('https');
-const cachedCrypto       = require('./tools/cached-crypto');
-const AutoChallenge      = require('./tools/auto-challenge');
-const AutoValidation     = require('./tools/auto-validation');
-const jose               = require('../lib/jose');
-const pki                = require('../lib/pki');
-const TransportClient    = require('../lib/client/transport-client');
-const TransportServer    = require('../lib/server/transport-server');
-const HTTP01Challenge    = require('../lib/server/http-challenge');
-const HTTP01Validation   = require('../lib/client/http-validation');
-const DNS01Challenge     = require('../lib/server/dns-challenge');
-const DNS01Validation    = require('../lib/client/dns-validation');
-const TLSSNI02Challenge  = require('../lib/server/tls-sni-challenge');
-const TLSSNI02Validation = require('../lib/client/tls-sni-validation');
-const ACMEClient         = require('../lib/client/acme-client');
-const ACMEServer         = require('../lib/server/acme-server');
+const assert              = require('chai').assert;
+const https               = require('https');
+const cachedCrypto        = require('./tools/cached-crypto');
+const AutoChallenge       = require('./tools/auto-challenge');
+const AutoValidation      = require('./tools/auto-validation');
+const jose                = require('../lib/jose');
+const pki                 = require('../lib/pki');
+const TransportClient     = require('../lib/client/transport-client');
+const TransportServer     = require('../lib/server/transport-server');
+const HTTP01Challenge     = require('../lib/server/http-challenge');
+const HTTP01Validation    = require('../lib/client/http-validation');
+const DNS01Challenge      = require('../lib/server/dns-challenge');
+const DNS01Validation     = require('../lib/client/dns-validation');
+const TLSSNI02Challenge   = require('../lib/server/tls-sni-challenge');
+const TLSSNI02Validation  = require('../lib/client/tls-sni-validation');
+const PageViewChallenge   = require('../lib/server/page-view-challenge');
+const OutOfBandValidation = require('../lib/client/out-of-band-validation');
+const ACMEClient          = require('../lib/client/acme-client');
+const ACMEServer          = require('../lib/server/acme-server');
 
 const port = 4430;
 
@@ -117,10 +119,12 @@ describe('challenge/validation integration', () => {
   DNS01Validation.port    = 5300;
   TLSSNI02Challenge.port  = 4430;
   TLSSNI02Validation.port = 4430;
+  PageViewChallenge.port  = 8080;
 
   it('http-01', testChallengeValidation(HTTP01Challenge, HTTP01Validation));
   it('dns-01', testChallengeValidation(DNS01Challenge, DNS01Validation));
   it('tls-sni-02', testChallengeValidation(TLSSNI02Challenge, TLSSNI02Validation));
+  it('oob-01', testChallengeValidation(PageViewChallenge, OutOfBandValidation));
 });
 
 describe('ACME-level client/server integration', () => {
