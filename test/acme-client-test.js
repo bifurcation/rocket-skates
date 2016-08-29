@@ -774,6 +774,18 @@ describe('ACME client', () => {
     }, 'Missing field in challenge');
   });
 
+  it('fails if the authz has valid challenge with no validated time', (done) => {
+    testInvalidAuthz(done, {
+      identifier: {type: 'dns', value: 'example.com'},
+      status:     'pending',
+      challenges: [{
+        type:   'truthy',
+        url:    'truthy',
+        status: 'valid'
+      }]
+    }, 'Valid challenge missing "validated" field');
+  });
+
   it('fails if the authz has no supported challenges', (done) => {
     testInvalidAuthz(done, {
       identifier: {type: 'dns', value: 'example.com'},

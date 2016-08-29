@@ -17,6 +17,7 @@ class AutoChallenge {
       this.status = 'invalid';
     } else {
       this.status = 'valid';
+      this.validated = new Date();
     }
 
     return Promise.resolve();
@@ -24,9 +25,10 @@ class AutoChallenge {
 
   toJSON() {
     return {
-      type:   AutoChallenge.type,
-      status: this.status,
-      token:  this.token
+      type:      AutoChallenge.type,
+      status:    this.status,
+      token:     this.token,
+      validated: this.validated
     };
   }
 }
