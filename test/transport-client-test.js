@@ -193,4 +193,73 @@ describe('transport-level client', () => {
       .then(() => { done(new Error('should have failed')); })
       .catch(() => { done(); });
   });
+
+  function testRetryAfter(retryAfter) {
+    return (done) => {
+      if (typeof(retryAfter) == 'function') {
+        retryAfter = retryAfter();
+      }
+
+      let gotFirstPOST = false;
+      let gotSecondPOST = false;
+      let problemHeaders = {'retry-after': retryAfter};
+      let problemResponse = {'type': 'urn:ietf:params:acme:error:rateLimited'};
+
+      nock('https://example.com')
+        .post('/foo').reply((uri, jws, cb) => {
+          gotFirstPOST = true;
+          cb(null, [403, problemResponse, problemHeaders]);
+        })
+        .post('/foo').reply((uri, jws, cb) => {
+          gotSecondPOST = true;
+          cb(null, [200, 'foo']);
+        });
+
+      cachedCrypto.key
+        .then(k => {
+          let client = new TransportClient({accountKey: k});
+          client.nonces = ['foo', 'bar'];
+          return client.post('https://example.com/foo', {});
+        })
+        .then(response => {
+          assert.equal(response.response.statusCode, 200);
+          assert.equal(response.body, 'foo');
+          assert.isTrue(gotFirstPOST);
+          assert.isTrue(gotSecondPOST);
+          done();
+        })
+        .catch(done);
+    };
+  }
+
+
+  it('retries POST when rate-limited (retry-after as int)', testRetryAfter(1));
+  it('retries POST when rate-limited (retry-after as date)', testRetryAfter(() => {
+    let now = new Date();
+    let nowPlus = new Date(now.getTime() + 1000);
+    return nowPlus.toUTCString();
+  }));
+  it('retries POST when rate-limited (retry-after as past date)', testRetryAfter(() => {
+    let now = new Date();
+    let nowPlus = new Date(now.getTime() - 1000);
+    return nowPlus.toUTCString();
+  }));
+  it('retries POST when rate-limited (invalid retry-after)', testRetryAfter('foo'));
+
+  it('passes on POST errors that are not handed by ACME', (done) => {
+    nock('https://example.com')
+        .post('/foo').reply(420);
+
+    cachedCrypto.key
+      .then(k => {
+        let client = new TransportClient({accountKey: k});
+        client.nonces = ['foo'];
+        return client.post('https://example.com/foo', {});
+      })
+      .then(() => { done(new Error('Should have gotten error')); })
+      .catch(err => {
+        assert.equal(err.response.statusCode, 420);
+        done();
+      });
+  });
 });

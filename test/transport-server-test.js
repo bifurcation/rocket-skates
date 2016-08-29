@@ -14,6 +14,7 @@ const cachedCrypto    = require('./tools/cached-crypto');
 const TransportServer = require('../lib/server/transport-server');
 
 const port = 4300;
+const rateLimit = 5;
 
 const nonceRE = /^[a-zA-Z0-9-_]+$/;
 const mockClient = new MockClient();
@@ -25,7 +26,7 @@ describe('transport-level server', () => {
   beforeEach(done => {
     cachedCrypto.tlsConfig
       .then(tlsConfig => {
-        transport = new TransportServer();
+        transport = new TransportServer({rateLimit: rateLimit});
         server = https.createServer(tlsConfig, transport.app);
         server.listen(port, done);
       });
@@ -75,6 +76,21 @@ describe('transport-level server', () => {
         .get('/')
         .expect(500, done);
     });
+  });
+
+  it('applies a rate limit', (done) => {
+    transport.rateLimit.queue.push(new Date('2016-01-01'));
+    for (let i = 0; i < rateLimit; ++i) {
+      transport.rateLimit.update();
+    }
+
+    promisify(request(server).post('/unknown'))
+      .then(res => {
+        assert.equal(res.status, 403);
+        assert.propertyVal(res.headers, 'retry-after', '1');
+        done();
+      })
+      .catch(done);
   });
 
   it('rejects a POST with a bad nonce', (done) => {
