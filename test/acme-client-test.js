@@ -774,53 +774,14 @@ describe('ACME client', () => {
     }, 'Missing field in challenge');
   });
 
-  it('fails if the authz has an invalid combinations field', (done) => {
-    testInvalidAuthz(done, {
-      identifier: {type: 'dns', value: 'example.com'},
-      status:     'pending',
-      challenges: [{
-        type: 'auto',
-        url:  'non-empty'
-      }],
-      combinations: 'nonsense'
-    }, 'Malformed combinations field in application');
-  });
-
-  it('fails if the authz has an invalid combinations value', (done) => {
-    testInvalidAuthz(done, {
-      identifier: {type: 'dns', value: 'example.com'},
-      status:     'pending',
-      challenges: [{
-        type: 'auto',
-        url:  'non-empty'
-      }],
-      combinations: [0]
-    }, 'Malformed combination value in application');
-  });
-
-  it('fails if the authz has an invalid combination', (done) => {
-    testInvalidAuthz(done, {
-      identifier: {type: 'dns', value: 'example.com'},
-      status:     'pending',
-      challenges: [{
-        type: 'auto',
-        url:  'non-empty'
-      }],
-      combinations: [[0, 2]]
-    }, 'Combination value out of bounds');
-  });
-
-  it('fails if the authz has no supported combinations', (done) => {
+  it('fails if the authz has no supported challenges', (done) => {
     testInvalidAuthz(done, {
       identifier: {type: 'dns', value: 'example.com'},
       status:     'pending',
       challenges: [
-        {type: 'auto', url: 'non-empty'},
-        {type: 'auto', url: 'non-empty'},
         {type: 'unsupported', url: 'non-empty'}
-      ],
-      combinations: [[0, 2], [1, 2]]
-    }, 'No supported combinations');
+      ]
+    }, 'No supported challenges');
   });
 
   it('deactivates an authorization', (done) => {
