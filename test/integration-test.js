@@ -28,12 +28,16 @@ const ACMEServer          = require('../lib/server/acme-server');
 
 const port = 4430;
 
-describe('transport-level client/server integration', () => {
+describe('transport-level client/server integration', function() {
+  this.timeout(3000);
+
   let transport;
   let server;
 
   beforeEach(done => {
-    transport = new TransportServer();
+    transport = new TransportServer({rateLimit: 1});
+    transport.rateLimit.update();
+
     cachedCrypto.tlsConfig
       .then(config => {
         server = https.createServer(config, transport.app);
@@ -45,7 +49,7 @@ describe('transport-level client/server integration', () => {
     server.close(done);
   });
 
-  it('performs a POST request with preflight', (done) => {
+  it('performs a POST request with preflight and rate-limit retry', (done) => {
     let url = `https://localhost:${port}/foo`;
     let gotPOST = false;
     let query = {'foo': 'bar'};
